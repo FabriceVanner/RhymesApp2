@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- android:windowSoftInputMode="stateHidden|adjustResize"-->
+
+    <LinearLayout
+
+
+            android:orientation="vertical"
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:context="rhymesapp.RhymesBaseActivity"
+            android:background="@android:color/black" android:gravity="bottom" android:weightSum="1">
+
+        <EditText android:id="@+id/inputText" android:layout_width="fill_parent"
+                  android:textStyle="bold"
+                  android:enabled="true" android:focusable="true"
+                  android:focusableInTouchMode="true" android:inputType="textAutoComplete"
+                  android:windowSoftInputMode="stateHidden|adjustResize"
+                  android:background="#002a6f" android:singleLine="true" android:textIsSelectable="true"
+                  android:editable="false" android:clickable="true" android:autoText="false"
+                  android:textColor="@android:color/white"
+                  android:gravity="center" android:layout_height="77dp" android:minHeight="77dp"
+                  android:textSize="26sp"/>
+        <ScrollView
+            android:layout_width="fill_parent"
+            android:layout_height="436dp"
+            android:id="@+id/scrollView"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:background="@android:color/black"
+            android:scrollHorizontally="true"
+
+            android:layout_weight="0.85">
+    <!---->
+    <HorizontalScrollView
+            android:layout_width="fill_parent"
+            android:id="@+id/horizontalScrollView"
+            android:layout_height="fill_parent">
+        <TextView
+                android:id="@+id/outputTextView"
+
+                android:layout_height="fill_parent"
+                android:layout_marginTop="20dp"
+                android:textStyle="bold"
+                android:textSize="26sp"
+                android:scrollHorizontally="true"
+                android:layout_width="match_parent"
+
+                android:minHeight="400dp" android:minWidth="100dp">
+        </TextView>
+    </HorizontalScrollView>
+</ScrollView>
+
+    <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+        <ToggleButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:textOff="@string/v_off"
+                android:textOn="@string/v_on"
+                android:id="@+id/voiceOutToggle"
+                style="@android:style/Widget.DeviceDefault.Button.Toggle"/>
+        <ToggleButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:id="@+id/associationsToggle" android:layout_weight="1"
+                android:textOff="@string/a_off"
+                android:textOn="@string/a_on"
+                style="@android:style/Widget.DeviceDefault.Button.Toggle"/>
+        <ToggleButton
+                android:text="@string/rand"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:id="@+id/autoRandomToggle" android:layout_weight="1"
+                android:textOn="@string/ar_on"
+                android:textOff="@string/ar_off"
+                style="@android:style/Widget.DeviceDefault.Button.Toggle"/>
+        <ToggleButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:id="@+id/hashMapToggle" android:layout_weight="1"
+                android:textOff="@string/h_off" android:textOn="@string/h_on"
+                style="@android:style/Widget.DeviceDefault.Button.Toggle"/>
+
+        <ToggleButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:id="@+id/wakeLockToggle" android:layout_weight="1"
+                android:textOff="@string/wl_off" android:textOn="@string/wl_on"
+                style="@android:style/Widget.DeviceDefault.Button.Toggle"/>
+
+    </LinearLayout>
+    <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" tools:background="@android:color/black">
+        <SeekBar
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/outputSizeBar"
+                android:layout_weight="1"/>
+        <SeekBar
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:id="@+id/autoRandomSpeedBar" android:layout_weight="1"/>
+    </LinearLayout>
+    <ProgressBar style="?android:attr/progressBarStyleHorizontal" android:id="@+id/progressBar"
+                 android:layout_width="match_parent" android:layout_height="30dp" android:paddingLeft="10dp"
+                 android:paddingRight="10dp"
+                 android:background="@android:color/black"/>
+    <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="41dp">
+        <Button
+                android:text="@string/keys"
+                android:id="@+id/keys"
+                android:layout_weight="1" android:layout_width="100dp" android:layout_height="40dp"
+
+                android:background="@android:color/darker_gray"/>
+        <Button android:id="@+id/voiceRecogButton" android:layout_width="100dp"
+                android:text="@string/speak"
+                android:layout_marginBottom="40dp"
+                android:background="#002a6f" android:textColor="@android:color/white" android:layout_weight="1"
+                android:layout_height="40dp"/>
+        <Button android:id="@+id/randomQueryButton"
+                android:text="@string/randText"
+                android:background="#d30e63" android:textColor="@android:color/white"
+                android:layout_weight="1" android:layout_width="100dp" android:layout_height="40dp"/>
+    </LinearLayout>
+
+</LinearLayout>

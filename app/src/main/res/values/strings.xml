@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">Rhymes App</string>
+
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="h_on">H On</string>
+    <string name="h_off">H Off</string>
+    <string name="ar_off">AR Off</string>
+    <string name="ar_on">AR On</string>
+    <string name="rand">Rand</string>
+    <string name="a_on">A On</string>
+    <string name="a_off">A Off</string>
+    <string name="v_on">V On</string>
+    <string name="v_off">V Off</string>
+    <string name="keys">Keys</string>
+    <string name="speak">speak</string>
+    <string name="randText">rand</string>
+    <string name="wl_on">WL On</string>
+    <string name="wl_off">WL Off</string>
+</resources>
