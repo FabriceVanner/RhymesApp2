@@ -1,6 +1,7 @@
 package rhymesapp;
 
 import android.app.Activity;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -34,22 +35,8 @@ import static rhymesapp.Constatics.*;
 import static rhymesapp.StringsAndStuff.ERR_NOT_OPEN_DB;
 
 
-public class RhymesBaseActivity extends Activity implements RecognitionListener, View.OnTouchListener,TextToSpeech.OnInitListener{ /*implements View.OnKeyListener */
-    public TextView getOutputTextView() {
-        return outputTextView;
-    }
+public class RhymesBaseActivity extends Activity implements RecognitionListener, View.OnTouchListener, TextToSpeech.OnInitListener { /*implements View.OnKeyListener */
 
-    public void setOutputTextView(TextView outputTextView) {
-        this.outputTextView = outputTextView;
-    }
-
-    public EditText getInputTextView() {
-        return inputTextView;
-    }
-
-    public void setInputTextView(EditText inputTextView) {
-        this.inputTextView = inputTextView;
-    }
 
     private TextView outputTextView;
     private EditText inputTextView;
@@ -61,17 +48,21 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     private SeekBar autoRandomSpeedBar;
     private SpeechRecognizer speech = null;
 
-    private Intent recognizerIntent;
     private ToggleButton associationsToggle;
     private ToggleButton autoRandomToggle;
     private ToggleButton textToSpeechToggle;
     private ToggleButton hmToggle;
     private ToggleButton wakeLockToggle;
-//###############################################################################################
-
+    private ToggleButton serviceToggle;
+    //###############################################################################################
+    private Intent recognizerIntent;
     private HelperActivity helper = null;
     private String LOG_TAG = "RA";
     private Handler timerHandler = new Handler();
+
+    private Context context;
+    /** for broadcasting to service*/
+    PendingIntent pendingIntent;
 
     //private boolean enableSpeechRecognition = true;
 // Pinch Zoom:
@@ -88,27 +79,65 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     private boolean enableTextToSpeech;
     private boolean enableAutoRandom;
     private boolean enableHashMapPrefetch;
-
-    private int autoRandomSpeedinMS;
+    private boolean enableService;
+    public int autoRandomSpeedinMS;
 
     //###############################################################################################
     TextToSpeech textToSpeechEngine;
 
     PowerManager pm;
     PowerManager.WakeLock wl;
-    protected boolean enableWakeLock=false;
+    protected boolean enableWakeLock = false;
 
-    /** to store the results retourned by the async rhyme-queries (for the speak-recog. results) */
+    /**
+     * to store the results retourned by the async rhyme-queries (for the speak-recog. results)
+     */
     public Vector<String> rhymeResults;
+
 
     public WordRhymesPair randomRhymesQuery;
 
-    private InputMethodManager im ;
+    private InputMethodManager im;
 
     private SharedPreferences sharedPreferences;
     private SharedPreferences.Editor editor;
+
     //###############################################################################################
-    private void initDataProvider()  {
+    /*
+    private RhymesService rhymesService;
+
+    private ServiceConnection mConnection = new ServiceConnection() {
+
+        public void onServiceConnected(ComponentName className,
+                                       IBinder binder) {
+            RhymesService.MyBinder b = (RhymesService.MyBinder) binder;
+            rhymesService = b.getService();
+            Toast.makeText(RhymesBaseActivity.this, "Connected", Toast.LENGTH_SHORT)
+                    .show();
+        }
+        public void onServiceDisconnected(ComponentName className) {
+            rhymesService = null;
+        }
+    };
+*/
+    public TextView getOutputTextView() {
+        return outputTextView;
+    }
+
+    public void setOutputTextView(TextView outputTextView) {
+        this.outputTextView = outputTextView;
+    }
+
+    public EditText getInputTextView() {
+        return inputTextView;
+    }
+
+    public void setInputTextView(EditText inputTextView) {
+        this.inputTextView = inputTextView;
+    }
+
+
+    private void initDataProvider() {
         //myDbHelper = getInstance(this);
         /* TODO: Uncomment*/
 
@@ -116,14 +145,14 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
             constatics.dataBaseHelper.setUpInternalDataBase(Constatics.forceCopyOfDBFile, Constatics.copyDBFileIfDifferentSize);
         } catch (IOException ioe) {
 
-            String mess="";
-            if(ioe.getCause()!=null){
+            String mess = "";
+            if (ioe.getCause() != null) {
                 mess = ioe.getCause().getMessage();
             }
-            mess += " at Location "+ioe.getMessage();
-        //    Log.e(LOG_TAG,ioe.getCause().getMessage());
-            Log.e(LOG_TAG,mess);
-            Toast.makeText(RhymesBaseActivity.this,ERR_NOT_OPEN_DB+mess, Toast.LENGTH_SHORT).show();
+            mess += " at Location " + ioe.getMessage();
+            //    Log.e(LOG_TAG,ioe.getCause().getMessage());
+            Log.e(LOG_TAG, mess);
+            Toast.makeText(RhymesBaseActivity.this, ERR_NOT_OPEN_DB + mess, Toast.LENGTH_SHORT).show();
             return;
         }
         constatics.dataBaseHelper.openDataBase();
@@ -134,17 +163,17 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
 
     @Override
     protected void onSaveInstanceState(Bundle state) {
-        Log.d(LOG_TAG,"onSaveInstanceState()");
+        Log.d(LOG_TAG, "onSaveInstanceState()");
         super.onSaveInstanceState(state);
         //  state.putSerializable("starttime", startTime);
         //TODO: hier evtl rausnehmen, was in persistent in einer datei abgelegt wird
 
-        state.putBoolean("enableAutoRandom",enableAutoRandom);
-        state.putBoolean("enableSpeechRecognition",enableSpeechRecognition);
-        state.putBoolean("enableTextToSpeech",enableTextToSpeech);
-        state.putBoolean("enableWakeLock",enableWakeLock);
-        state.putBoolean("enableHashMapPrefetch",enableHashMapPrefetch);
-        state.putCharSequence("outputTextViewText",outputTextView.getText());
+        state.putBoolean("enableAutoRandom", enableAutoRandom);
+        state.putBoolean("enableSpeechRecognition", enableSpeechRecognition);
+        state.putBoolean("enableTextToSpeech", enableTextToSpeech);
+        state.putBoolean("enableWakeLock", enableWakeLock);
+        state.putBoolean("enableHashMapPrefetch", enableHashMapPrefetch);
+        state.putCharSequence("outputTextViewText", outputTextView.getText());
         state.putCharSequence("inputTextViewText", inputTextView.getText());
         state.putSerializable("rhymeResultsArray", rhymeResults);
 
@@ -153,7 +182,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
 
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
-        Log.d(LOG_TAG,"onRestoreInstanceState()");
+        Log.d(LOG_TAG, "onRestoreInstanceState()");
         super.onRestoreInstanceState(savedInstanceState);
         // no need to check for null of savedInstanceState here
         rhymeResults = (Vector<String>) savedInstanceState.getSerializable("rhymeResultsArray");
@@ -164,30 +193,39 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         */
 
         enableHashMapPrefetch = (savedInstanceState.getBoolean("enableHashMapPrefetch", enableHashMapPrefetchDefault));
-        if(hmToggle!=null){
+        if (hmToggle != null) {
             hmToggle.setChecked(enableHashMapPrefetch);
         }
         if (constatics != null) {
             constatics.onRestoreInstanceState(savedInstanceState);
         } else {
-            constatics =Constatics.getInstance(this);
+            constatics = Constatics.getInstance(this);
         }
 
         outputTextView.setText(savedInstanceState.getCharSequence("outputTextViewText"));
         inputTextView.setText(savedInstanceState.getCharSequence("inputTextViewText"));
-        enableAutoRandom =   savedInstanceState.getBoolean("enableAutoRandom",false);
-        enableWakeLock =  savedInstanceState.getBoolean("enableWakeLock",enableWakeLockDefault);
+        enableAutoRandom = savedInstanceState.getBoolean("enableAutoRandom", false);
+        enableWakeLock = savedInstanceState.getBoolean("enableWakeLock", enableWakeLockDefault);
         enableTextToSpeech = (savedInstanceState.getBoolean("enableTextToSpeech", enableHashMapPrefetchDefault));
-
 
 
         // Log.v(TAG, "Inside of onRestoreInstanceState");
     }
 
 
+    protected void setUpPendingIntentForBroadcastToService(){
+        //##################### Service
+        Intent notificationIntent = new Intent(context, RhymesBaseActivity.class);
+        notificationIntent.setAction(Constatics.ACTION.MAIN_ACTION);
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+         pendingIntent = PendingIntent.getActivity(context, 0,
+                notificationIntent, 0);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Log.d(LOG_TAG,"onCreate()");
+        Log.d(LOG_TAG, "onCreate()");
         //http://stackoverflow.com/questions/4553605/difference-between-onstart-and-onresume
         super.onCreate(savedInstanceState);
         helper = new HelperActivity(this);
@@ -207,30 +245,28 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         loadPersistentSettings();
         */
 
-
         /** continue app, while screen off*/
         pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK , "My Tag");
-
-
-
-
+        wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "My Tag");
 
         rhymeResults = new Vector<>();
-
 
         //this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.activity_main);
 
 
-
+//######################For Service Broadcast#####################################################
+//
+        context = this.getApplicationContext();
+        setUpPendingIntentForBroadcastToService();
+//###############################################################################################
         /** */
         recvolumeProgrBar = (ProgressBar) findViewById(R.id.progressBar);
         voiceRecogButton = (Button) findViewById(R.id.voiceRecogButton);
 
 
         randomQueryButton = (Button) findViewById(R.id.randomQueryButton);
-        autoRandomSpeedBar =  (SeekBar) findViewById(R.id.autoRandomSpeedBar);
+        autoRandomSpeedBar = (SeekBar) findViewById(R.id.autoRandomSpeedBar);
         autoRandomSpeedBar.setMax(15000);
         autoRandomSpeedBar.setBottom(3000);
         autoRandomSpeedBar.setProgress((int) autoRandomSpeedinMS);
@@ -238,42 +274,32 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         outputTextView = (TextView) findViewById(R.id.outputTextView);
         inputTextView = (EditText) findViewById(R.id.inputText);
         inputTextView.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-                //inputTextView.setEnabled(true);
+        //inputTextView.setEnabled(true);
 
-        associationsToggle = (ToggleButton)findViewById(R.id.associationsToggle);
-        autoRandomToggle= (ToggleButton)findViewById(R.id.autoRandomToggle);;
-        textToSpeechToggle =(ToggleButton)findViewById(R.id.voiceOutToggle);
-        wakeLockToggle = (ToggleButton)findViewById(R.id.wakeLockToggle);
-        im =(InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-        //im.showSoftInput(inputTextView, InputMethodManager.HIDE_NOT_ALWAYS);
-      //  InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-
-
-        //im.hideSoftInputFromWindow(inputTextView.getWindowToken(), 0);
-
-        //im.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(),InputMethodManager.HIDE_NOT_ALWAYS);
-        //getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
-
-        //inputTextView.setShowSoftInputOnFocus(false);
-
-        inputTextView.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-
-        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
+        associationsToggle = (ToggleButton) findViewById(R.id.associationsToggle);
+        autoRandomToggle = (ToggleButton) findViewById(R.id.autoRandomToggle);
+        ;
+        textToSpeechToggle = (ToggleButton) findViewById(R.id.voiceOutToggle);
+        wakeLockToggle = (ToggleButton) findViewById(R.id.wakeLockToggle);
+        serviceToggle = (ToggleButton) findViewById(R.id.serviceToggle);
 
         keysButton = (Button) findViewById(R.id.keys);
-
-
+        im = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        inputTextView.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
 
         textFieldsSizeBar = (SeekBar) findViewById(R.id.outputSizeBar);
         textFieldsSizeBar.setMax(80);
         textFieldsSizeBar.setBottom(16);
-        textFieldsSizeBar.setProgress((int)outputTextView.getTextSize());
+        textFieldsSizeBar.setProgress((int) outputTextView.getTextSize());
 
-        hmToggle = (ToggleButton) findViewById(R.id.hashMapToggle) ;
+        hmToggle = (ToggleButton) findViewById(R.id.hashMapToggle);
         hmToggle.setChecked(DataBaseHelper.isEnabledHashMapPrefetch());
 
         //outputTextView.requestFocus();
         recvolumeProgrBar.setVisibility(View.INVISIBLE);
+        //###############################################################################################
+
         if (enableSpeechRecognition) {
             speech = SpeechRecognizer.createSpeechRecognizer(this);
             speech.setRecognitionListener(this);
@@ -288,10 +314,9 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
             recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
         }
 
-        if(enableTextToSpeech){
-             textToSpeechEngine = new TextToSpeech(this, this);
+        if (enableTextToSpeech) {
+            textToSpeechEngine = new TextToSpeech(this, this);
         }
-
 
 
         randomQueryButton.setOnClickListener(new View.OnClickListener() {
@@ -300,7 +325,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
                 findRandomWordPair();
             }
         });
-             autoRandomSpeedBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        autoRandomSpeedBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 autoRandomSpeedinMS = progress;
@@ -317,7 +342,6 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
             }
 
         });
-
 
 
         keysButton.setOnClickListener(new View.OnClickListener() {
@@ -342,27 +366,27 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         inputTextView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                if ( actionId==EditorInfo.IME_ACTION_NEXT|| (actionId == EditorInfo.IME_ACTION_DONE) || ((event.getKeyCode() == KeyEvent.KEYCODE_ENTER) && (event.getAction() == KeyEvent.ACTION_DOWN ))){
-                    if(!constatics.dataBaseHelper.isDbReadyLoaded())return false;
+                if (actionId == EditorInfo.IME_ACTION_NEXT || (actionId == EditorInfo.IME_ACTION_DONE) || ((event.getKeyCode() == KeyEvent.KEYCODE_ENTER) && (event.getAction() == KeyEvent.ACTION_DOWN))) {
+                    if (!constatics.dataBaseHelper.isDbReadyLoaded()) return false;
 
                     // close keyboard:
                     //  getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
                     //InputMethodManager im = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                   im.hideSoftInputFromWindow(inputTextView.getWindowToken(), 0);
+                    im.hideSoftInputFromWindow(inputTextView.getWindowToken(), 0);
                     //inputTextView.setCursorVisible(false);
                     //String str = inputTextView.getText().toString().split(" ")[0];
                     outputTextView.setText("");
 
                     String viewString = inputTextView.getText().toString();
 
-                    ArrayList<String> inputWords = new ArrayList<>( );
+                    ArrayList<String> inputWords = new ArrayList<>();
                     String[] inputWordsStrArr = inputTextView.getText().toString().split(", ");
-                    for(String word : inputWordsStrArr ){
+                    for (String word : inputWordsStrArr) {
                         inputWords.add(word);
                     }
 
-                    ArrayList<Integer> delimiterIndexes = Constatics.guiUtils.getDelimiterIndexes(viewString,", ");
-                    Constatics.guiUtils.setClickableWordsInTextView(inputTextView,viewString,delimiterIndexes);
+                    ArrayList<Integer> delimiterIndexes = Constatics.guiUtils.getDelimiterIndexes(viewString, ", ");
+                    Constatics.guiUtils.setClickableWordsInTextView(inputTextView, viewString, delimiterIndexes);
 
                     emptyRhymeResultsArray();
                     asyncRhymesQuery(inputWords);
@@ -372,13 +396,11 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
                     //Toast.makeText(RhymesBaseActivity.this,"inputTextView.setOnKeyListener(): Running Rhymes query with :"+str, Toast.LENGTH_SHORT).show();
                     //inputTextView.setEnabled(false);
                     return true;
-                }
-                else{
+                } else {
                     return false;
                 }
             }
         });
-
 
 
         textFieldsSizeBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -386,7 +408,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 outputTextView.setTextSize(progress);
                 float inputTextSize = inputTextView.getTextSize();
-                inputTextView.setTextSize(inputTextSize+(progress-inputTextSize));
+                inputTextView.setTextSize(inputTextSize + (progress - inputTextSize));
             }
 
             @Override
@@ -406,9 +428,9 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 //loadHashMapPrefetch = isChecked;
                 constatics.setEnableHashMapPrefetch(isChecked);
-                if(isChecked){
+                if (isChecked) {
                     constatics.dataBaseHelper.loadHashMapPrefetch();
-                }else {
+                } else {
                     constatics.dataBaseHelper.setWordIndexHashMap(null);
                     Log.d(LOG_TAG, "hmSwitch: just set HashMap to null ");
                 }
@@ -423,7 +445,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
                     case MotionEvent.ACTION_DOWN:
                         v.setBackgroundColor(Color.GREEN);
                         inputTextView.setVisibility(View.INVISIBLE);
-                        if (enableSpeechRecognition){
+                        if (enableSpeechRecognition) {
                             speech.startListening(recognizerIntent);
                             recvolumeProgrBar.setVisibility(View.VISIBLE);
                             recvolumeProgrBar.setIndeterminate(true);
@@ -433,7 +455,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
                     case MotionEvent.ACTION_UP:
                         v.setBackgroundColor(Color.GREEN);
                         inputTextView.setVisibility(View.VISIBLE);
-                        if (enableSpeechRecognition){
+                        if (enableSpeechRecognition) {
                             speech.stopListening();
                             recvolumeProgrBar.setIndeterminate(false);
                             recvolumeProgrBar.setVisibility(View.INVISIBLE);
@@ -446,8 +468,6 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         });
 
 
-
-
         outputTextView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -457,26 +477,43 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         });
 
 
-
-
-
-
-
-
         autoRandomToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 enableAutoRandom = isChecked;
-                if(isChecked) {
-                    if(enableWakeLock) {
+                Intent buttonPlayIntent = new Intent(context, RhymesService.NotificationPlayButtonHandler.class);
+                PendingIntent buttonPlayPendingIntent;
+                if (isChecked) {
+                    //for service-broadcast
+                    buttonPlayIntent.putExtra("action", "start");
+
+                    if (enableWakeLock) {
                         wl.acquire();
                     }
                     timerHandler.postDelayed(timerRunnable, 4000);
-                }else{
+
+
+
+
+                } else {
+                    //for service-broadcast
+                    buttonPlayIntent.putExtra("action", "stop");
+
+
+
+
                     timerHandler.removeCallbacks(timerRunnable);
-                    if(enableWakeLock) {
+                    if (enableWakeLock) {
                         wl.release();
                     }
+                }
+                buttonPlayPendingIntent = pendingIntent.getBroadcast(context, 0, buttonPlayIntent, 0);
+                // for service broadcast
+                try {
+                    // Perform the operation associated with our pendingIntent
+                    buttonPlayPendingIntent.send();
+                } catch (PendingIntent.CanceledException e) {
+                    e.printStackTrace();
                 }
             }
 
@@ -486,28 +523,50 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         textToSpeechToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if(isChecked) {
-                    enableTextToSpeech=true;
-                }else{
-                    enableTextToSpeech=false;
+                if (isChecked) {
+                    enableTextToSpeech = true;
+                } else {
+                    enableTextToSpeech = false;
                 }
             }
 
 
         });
 
+        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                Intent serviceIntent = new Intent(RhymesBaseActivity.this, RhymesService.class);
+
+                if (isChecked) {
+                    if (!RhymesService.IS_SERVICE_RUNNING) {
+                        serviceIntent.setAction(Constatics.ACTION.STARTFOREGROUND_ACTION);
+                        RhymesService.IS_SERVICE_RUNNING = true;
+                        startService(serviceIntent);
+
+                    }
+                } else {
+                    if (RhymesService.IS_SERVICE_RUNNING) {
+                        serviceIntent.setAction(Constatics.ACTION.STOPFOREGROUND_ACTION);
+                        RhymesService.IS_SERVICE_RUNNING = false;
+                        startService(serviceIntent);
+                    }
+                }
+            }
+
+        });
+
     }
 
-    private void findRandomWordPair(){
+    private void findRandomWordPair() {
         new AsyncRandomRhymesQuery().execute(0);
     }
 
-    private void showRandomWordRhymesPair(WordRhymesPair wordRhymesPair){
-        if(wordRhymesPair==null)return;
-        prepareAndSendViewText(inputTextView,wordRhymesPair.getWord());
-        prepareAndSendColoredViewText(outputTextView,wordRhymesPair.getRhymes());
+    private void showRandomWordRhymesPair(WordRhymesPair wordRhymesPair) {
+        if (wordRhymesPair == null) return;
+        prepareAndSendViewText(inputTextView, wordRhymesPair.getWord());
+        prepareAndSendColoredViewText(outputTextView, wordRhymesPair.getRhymes());
     }
-
 
 
     private Runnable timerRunnable = new Runnable() {
@@ -527,17 +586,17 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
                 mBaseRatio = mRatio;
             } else {
                 float delta = (getDistance(event) - mBaseDist) / STEP;
-                float multi = (float)Math.pow(2, delta);
+                float multi = (float) Math.pow(2, delta);
                 mRatio = Math.min(1024.0f, Math.max(0.1f, mBaseRatio * multi));
-                float Textsize = mRatio+13;
-                if(Textsize>22){
+                float Textsize = mRatio + 13;
+                if (Textsize > 22) {
                     Textsize = 22;
-                }else if (Textsize <13){
+                } else if (Textsize < 13) {
                     Textsize = 13;
                 }
 
                 outputTextView.setTextSize(Textsize);
-                Log.d(LOG_TAG,"mRation = "+ mRatio + "\tTextSize = " +Textsize);
+                Log.d(LOG_TAG, "mRation = " + mRatio + "\tTextSize = " + Textsize);
 
             }
         }
@@ -545,31 +604,43 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     }
 
     int getDistance(MotionEvent event) {
-        int dx = (int)(event.getX(0) - event.getX(1));
-        int dy = (int)(event.getY(0) - event.getY(1));
-        return (int)(Math.sqrt(dx * dx + dy * dy));
+        int dx = (int) (event.getX(0) - event.getX(1));
+        int dy = (int) (event.getY(0) - event.getY(1));
+        return (int) (Math.sqrt(dx * dx + dy * dy));
     }
 
     public boolean onTouch(View v, MotionEvent event) {
         // TODO Auto-generated method stub
         return false;
     }
+
     @Override
     public void onResume() {
-        Log.d(LOG_TAG,"onResume()");
+        Log.d(LOG_TAG, "onResume()");
         super.onResume();
+/*
+// SERVICE
+        // use this to start and trigger a service
+        Intent intent= new Intent(this, RhymesService.class);
+// potentially add data to the intent
+        //i.putExtra("KEY1", "Value to be used by the service");
+
+        bindService(intent, mConnection,
+                Context.BIND_AUTO_CREATE);
+        //context.startService(i);
+*/
     }
 
 
     /**
      * store settings in file
      */
-    protected void savePersistentSettings(){
-        editor.putBoolean("enableTextToSpeech",enableTextToSpeech);
+    protected void savePersistentSettings() {
+        editor.putBoolean("enableTextToSpeech", enableTextToSpeech);
         editor.putInt("autoRandomSpeedinMS", autoRandomSpeedinMS);
-        editor.putBoolean("enableAutoRandom",enableAutoRandom);
-        editor.putBoolean("enableTextToSpeech",enableTextToSpeech);
-        editor.putBoolean("loadHashMapPrefetch",enableHashMapPrefetch);
+        editor.putBoolean("enableAutoRandom", enableAutoRandom);
+        editor.putBoolean("enableTextToSpeech", enableTextToSpeech);
+        editor.putBoolean("loadHashMapPrefetch", enableHashMapPrefetch);
         editor.commit();
 
     }
@@ -577,26 +648,26 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     /**
      * restore settings from file
      */
-    protected void loadPersistentSettings(){
+    protected void loadPersistentSettings() {
         //SharedPreferences sharedPreferences = getPreferences(MODE_PRIVATE);
-        autoRandomSpeedinMS = (sharedPreferences.getInt("autoRandomSpeedinMS",autoRandomSpeedinMSDefault));
-        enableAutoRandom = sharedPreferences.getBoolean("enableAutoRandom",false);
-        enableTextToSpeech = sharedPreferences.getBoolean("enableTextToSpeech",enableTextToSpeechDefault);
-        enableHashMapPrefetch=sharedPreferences.getBoolean("loadHashMapPrefetch",enableHashMapPrefetchDefault);
+        autoRandomSpeedinMS = (sharedPreferences.getInt("autoRandomSpeedinMS", autoRandomSpeedinMSDefault));
+        enableAutoRandom = sharedPreferences.getBoolean("enableAutoRandom", false);
+        enableTextToSpeech = sharedPreferences.getBoolean("enableTextToSpeech", enableTextToSpeechDefault);
+        enableHashMapPrefetch = sharedPreferences.getBoolean("loadHashMapPrefetch", enableHashMapPrefetchDefault);
 
 
     }
 
 
     @Override
-    protected void onDestroy(){
-        Log.d(LOG_TAG,"onDestroy()");
+    protected void onDestroy() {
+        Log.d(LOG_TAG, "onDestroy()");
         super.onDestroy();
     }
 
     @Override
-    protected void onStop(){
-        Log.d(LOG_TAG,"onStop()");
+    protected void onStop() {
+        Log.d(LOG_TAG, "onStop()");
         super.onDestroy();
     }
 
@@ -604,7 +675,10 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     @Override
     protected void onPause() {
         Log.i(LOG_TAG, "onPause()");
-        boolean isBound = false;
+        //boolean isBound = false;
+
+        //SERVICE:
+//        unbindService(mConnection);
 
 
 
@@ -646,7 +720,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         String errorMessage = getErrorText(errorCode);
         Log.d(LOG_TAG, "FAILED " + errorMessage);
         outputTextView.setText(errorMessage);
-      //  voiceRecogButton.setChecked(false);
+        //  voiceRecogButton.setChecked(false);
     }
 
     @Override
@@ -662,16 +736,16 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     @Override
     public void onReadyForSpeech(Bundle arg0) {
         Log.i(LOG_TAG, "onReadyForSpeech");
-       // Toast.makeText(RhymesBaseActivity.this, "called onReadyForSpeech()", Toast.LENGTH_SHORT).show();
+        // Toast.makeText(RhymesBaseActivity.this, "called onReadyForSpeech()", Toast.LENGTH_SHORT).show();
     }
 
     @Override
     public void onResults(Bundle results) {
         Log.i(LOG_TAG, "onResults");
-        ArrayList<String>  voiceRecogSpeechMatches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-        voiceRecogSpeechMatches=  Constatics.guiUtils.prepareSpeechMatches(voiceRecogSpeechMatches); //TODO:
-        String str = Constatics.guiUtils.concatStringListItems(voiceRecogSpeechMatches,", ");
-        Constatics.guiUtils.setClickableWordsInTextView(inputTextView,str,Constatics.guiUtils.getDelimiterIndexes(str, ", "));
+        ArrayList<String> voiceRecogSpeechMatches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+        voiceRecogSpeechMatches = Constatics.guiUtils.prepareSpeechMatches(voiceRecogSpeechMatches); //TODO:
+        String str = Constatics.guiUtils.concatStringListItems(voiceRecogSpeechMatches, ", ");
+        Constatics.guiUtils.setClickableWordsInTextView(inputTextView, str, Constatics.guiUtils.getDelimiterIndexes(str, ", "));
         //inputTextView.setText(text);
 
         emptyRhymeResultsArray();
@@ -682,22 +756,24 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
 //iah\\nYue\\naua\\nAye-Aye\\na\\neh\\nhaha\\naha\\nAr\\nEth\\ndz\\nRäf\\nträf\\nMarseille\\nBouteille\\nNonpareilles\\nIschewsk\\nBischkek\\nquäk\\nerwäg\\nsäg\\nzersäg\\npräg\\nträg\\nschräg\\npfähl\\nmähl\\nvermähl\\nstähl\\nwähl\\n
 
 
-    private void asyncRhymesQuery(ArrayList<String> matches){
-        for (int i=0; i<matches.size();i++){
+    private void asyncRhymesQuery(ArrayList<String> matches) {
+        for (int i = 0; i < matches.size(); i++) {
             //String match = matches.get(i); rhymes = runRhymesQuery(match);
-            new AsyncRhymesQueryTask().execute(new AsynchRhymesQueryParamWrapper(i+1,matches.get(i)));
+            new AsyncRhymesQueryTask().execute(new AsynchRhymesQueryParamWrapper(i + 1, matches.get(i)));
             //PARALLEL THREADS:
             //new AsyncRhymesQueryTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,new AsynchRhymesQueryParamWrapper(i+1,matches.get(i)));
         }
     }
 
 
-    private void emptyRhymeResultsArray(){
+    private void emptyRhymeResultsArray() {
         rhymeResults.clear();
     }
 
-    /**colorizes text and sends it to output view*/
-    public void prepareAndSendViewText(TextView view,String text){
+    /**
+     * colorizes text and sends it to output view
+     */
+    public void prepareAndSendViewText(TextView view, String text) {
         ///Spannable spannable = Constatics.guiUtils.colorizeText(text,"\n"); //TODO:
         //outputTextView.setText(spannable,TextView.BufferType.SPANNABLE);
         view.setText(text);
@@ -705,28 +781,31 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     }
 
 
-    public void prepareAndSendColoredViewText(TextView view,String text){
-        Spannable spannable = Constatics.guiUtils.colorizeText(text,"\n"); //TODO:
-        view.setText(spannable,TextView.BufferType.SPANNABLE);
+    public void prepareAndSendColoredViewText(TextView view, String text) {
+        Spannable spannable = Constatics.guiUtils.colorizeText(text, "\n"); //TODO:
+        view.setText(spannable, TextView.BufferType.SPANNABLE);
         //view.setText(text);
 
     }
 
 
-    /** performs a check and starts the query*/
+    /**
+     * performs a check and starts the query
+     */
     private String runRhymesQuery(String word) {
-        if (word==null|| word.length()==0){
-            Log.v(LOG_TAG,"runRhymesQuery: word == null or == \"\" ");
+        if (word == null || word.length() == 0) {
+            Log.v(LOG_TAG, "runRhymesQuery: word == null or == \"\" ");
             return "";
         }
         String rhymes = "";
         rhymes = constatics.dataBaseHelper.getRhymes(word);
 
-      //  rhymes.replaceAll("\\\\n",System.getProperty("line.separator"));
+        //  rhymes.replaceAll("\\\\n",System.getProperty("line.separator"));
         //rhymes=rhymes.replaceAll("\\n","\n");
         return rhymes;//+\\\n sdfsdfsdf";
     }
-    private void loadTextToSpeech(){
+
+    private void loadTextToSpeech() {
         textToSpeechEngine = new TextToSpeech(this, this);
     }
 
@@ -735,10 +814,11 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         //Log.d(&Speech&, &OnInit - Status [&+status+&]&);
 
         if (status == TextToSpeech.SUCCESS) {
-          //  Log.d(&Speech&, &Success!&);
+            //  Log.d(&Speech&, &Success!&);
             textToSpeechEngine.setLanguage(Locale.GERMAN);
         }
     }
+
     private void speak(String text) {
         textToSpeechEngine.speak(text, TextToSpeech.QUEUE_FLUSH, null);
     }
@@ -752,15 +832,16 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     }
 
 
-
 //http://stackoverflow.com/questions/4195609/passing-arguments-to-asynctask-and-returning-results
 
 
-    /** Task used to run the rhyme-queries in background*/
+    /**
+     * Task used to run the rhyme-queries in background
+     */
     private class AsyncRhymesQueryTask extends AsyncTask<AsynchRhymesQueryParamWrapper, Void, AsynchRhymesQueryParamWrapper> {
         @Override
         protected AsynchRhymesQueryParamWrapper doInBackground(AsynchRhymesQueryParamWrapper... query) {
-            Log.d(LOG_TAG, "AsyncRhymesQueryTask doInBackground(): just run rhymes query with Nr.: "+query[0].nr + " and word "+query[0].word  );
+            Log.d(LOG_TAG, "AsyncRhymesQueryTask doInBackground(): just run rhymes query with Nr.: " + query[0].nr + " and word " + query[0].word);
             query[0].rhymes = runRhymesQuery(query[0].word);
             return query[0];
         }
@@ -771,11 +852,11 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         }
         */
 
-            @Override
+        @Override
         protected void onPostExecute(AsynchRhymesQueryParamWrapper result) {
             rhymeResults.add(result.rhymes);
-            if(result.nr ==1) prepareAndSendColoredViewText(outputTextView,result.rhymes);
-            Log.d(LOG_TAG, "AsyncRhymesQueryTask onPostExecute():  just added results of query "+ result.nr + "( "+result.word +" ) to rhymeResults-Arraylist");
+            if (result.nr == 1) prepareAndSendColoredViewText(outputTextView, result.rhymes);
+            Log.d(LOG_TAG, "AsyncRhymesQueryTask onPostExecute():  just added results of query " + result.nr + "( " + result.word + " ) to rhymeResults-Arraylist");
         }
     }
 
@@ -783,7 +864,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     private class AsyncRandomRhymesQuery extends AsyncTask<Integer, Void, rhymesapp.WordRhymesPair> {
         @Override
         protected rhymesapp.WordRhymesPair doInBackground(Integer... query) {
-           // Log.d(LOG_TAG, "AsyncRhymesQueryTask doInBackground(): just run rhymes query with Nr.: "+query[0].nr + " and word "+query[0].word  );
+            // Log.d(LOG_TAG, "AsyncRhymesQueryTask doInBackground(): just run rhymes query with Nr.: "+query[0].nr + " and word "+query[0].word  );
             return Constatics.dataBaseHelper.getRandWordRhymesPair();
 
         }
@@ -797,10 +878,10 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         @Override
         protected void onPostExecute(rhymesapp.WordRhymesPair wordRhymesPair) {
             super.onPostExecute(wordRhymesPair);
-        //    randomRhymesQuery = wordRhymesPair;
+            //    randomRhymesQuery = wordRhymesPair;
             showRandomWordRhymesPair(wordRhymesPair);
-            if(enableTextToSpeech){
-                if(textToSpeechEngine==null){
+            if (enableTextToSpeech) {
+                if (textToSpeechEngine == null) {
                     loadTextToSpeech();
                     onInit(TextToSpeech.SUCCESS);
                 }
@@ -817,9 +898,9 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     }
 
 
-
     /**
      * used for peak-meter of audio recogn.
+     *
      * @param rmsdB
      */
     @Override

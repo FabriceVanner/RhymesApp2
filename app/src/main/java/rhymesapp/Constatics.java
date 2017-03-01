@@ -135,6 +135,20 @@ public class Constatics {
         dataBaseHelper.onSaveInstanceState(savedInstanceState);
         //IOUtils.onSaveInstanceState(savedInstanceState);
     }
+//####################################################################################################################
+    //SERVICE:
+public interface ACTION {
+    public static String MAIN_ACTION = "rhymesapp.alertdialog.action.main";
+    public static String STARTFOREGROUND_ACTION = "rhymesapp.alertdialog.action.startforeground";
+    public static String STOPFOREGROUND_ACTION = "rhymesapp.alertdialog.action.stopforeground";
+}
+
+    public interface NOTIFICATION_ID {
+        public static int FOREGROUND_SERVICE = 101;
+    }
+
+
+//####################################################################################################################
 
 
 }

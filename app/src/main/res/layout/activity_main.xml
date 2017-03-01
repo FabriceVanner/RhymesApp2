@@ -54,6 +54,33 @@
 
     <LinearLayout
             android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+        <ToggleButton
+                android:text="ToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:id="@+id/toggleButton6" android:layout_weight="1"/>
+        <ToggleButton
+                android:text="ToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:id="@+id/toggleButton5" android:layout_weight="1"/>
+        <ToggleButton
+                android:text="ToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:id="@+id/toggleButton4" android:layout_weight="1"/>
+        <ToggleButton
+                android:text="ToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:id="@+id/toggleButton3" android:layout_weight="1"/>
+        <ToggleButton
+                android:text="ToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:id="@+id/serviceToggle" android:layout_weight="1"
+                android:textOff="Se OFF" android:textOn="Se On"
+                style="@android:style/Widget.DeviceDefault.Button.Toggle"/>
+    </LinearLayout>
+    <LinearLayout
+            android:orientation="horizontal"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content">
         <ToggleButton

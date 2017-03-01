@@ -1,0 +1,29 @@
+package com.tutorials;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.widget.Button;
+
+public class MainActivity extends AppCompatActivity {
+
+    Button button ;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+
+
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+    }
+
+    public void onClick(View view) {
+        Intent intent = new Intent(this, SecondActivity.class);
+        intent.putExtra("URL", "http://www.vogella.com");
+        startActivity(intent);
+    }
+
+
+
+}
