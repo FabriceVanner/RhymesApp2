@@ -8,35 +8,46 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.AsyncTask;
 import android.os.Binder;
+import android.os.Handler;
 import android.os.IBinder;
+import android.speech.tts.TextToSpeech;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.widget.RemoteViews;
 import android.widget.Toast;
 import com.rhymesapp.R;
 
-public class RhymesService extends Service {
+import java.io.IOException;
+import java.util.Locale;
+import java.util.Vector;
+
+import static rhymesapp.StringsAndStuff.ERR_NOT_OPEN_DB;
+
+public class RhymesService extends Service implements TextToSpeech.OnInitListener  {
 
     //http://blog.nkdroidsolutions.com/android-foreground-service-example-tutorial/
-
-
-
-
+    public Vector<String> rhymeResults;
+    private Constatics constatics;
+    public static final String BROADCAST_ACTION = "rhymesapp";
+    Intent broadcastIntent = new Intent();
     private final IBinder mBinder = new MyBinder();
     public static  boolean IS_SERVICE_RUNNING = false;
 
-    private static BaseActToServiceStorage baseActToServiceStorage;
+    //private static BaseActToServiceStorage baseActToServiceStorage;
     private static final String LOG_TAG = "RhymesService";
 
     @Override
     public void onCreate() {
         super.onCreate();
+        constatics = Constatics.getInstance(this);
+        initDataProvider();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        BaseActToServiceStorage.context = this.getApplicationContext();
+        context = this.getApplicationContext();
         //      return Service.START_NOT_STICKY;
 
         if (intent.getAction().equals(Constatics.ACTION.STARTFOREGROUND_ACTION)) {
@@ -54,11 +65,11 @@ public class RhymesService extends Service {
             RemoteViews notificationView = new RemoteViews(this.getPackageName(), R.layout.notification);
 
             // And now, building and attaching the Play button.
-            Intent buttonPlayIntent = new Intent(this, NotificationPlayButtonHandler.class);
-            buttonPlayIntent.putExtra("action", "togglePause");
+              Intent buttonPlayIntent = new Intent(this, NotificationPlayButtonHandler.class);
+              buttonPlayIntent.putExtra("action", "togglePlay");
 
-            PendingIntent buttonPlayPendingIntent = pendingIntent.getBroadcast(this, 0, buttonPlayIntent, 0);
-            notificationView.setOnClickPendingIntent(R.id.notification_button_play, buttonPlayPendingIntent);
+              PendingIntent buttonPlayPendingIntent = pendingIntent.getBroadcast(this, 0, buttonPlayIntent, 0);
+              notificationView.setOnClickPendingIntent(R.id.notification_button_play, buttonPlayPendingIntent);
 
             // And now, building and attaching the Skip button.
             Intent buttonSkipIntent = new Intent(this, NotificationSkipButtonHandler.class);
@@ -121,14 +132,12 @@ public class RhymesService extends Service {
     /**
      * Called when user clicks the "play/pause" button on the on-going system Notification.
      */
-    public static class NotificationPlayButtonHandler extends BroadcastReceiver {
+    public  class NotificationPlayButtonHandler extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getStringExtra("action");
             Toast.makeText(context,"Play Clicked "+ action,Toast.LENGTH_SHORT).show();
-
-            if (action=="start") baseActToServiceStorage.startTimerHandler();
-            else   baseActToServiceStorage.stopTimerHandler();
+            toggleTimerHandler();
         }
     }
 
@@ -164,7 +173,134 @@ public class RhymesService extends Service {
     }
 
 
+    /**
+     * Task used to run the rhyme-queries in background
+     */
 
+    private class AsyncRhymesQueryTask extends AsyncTask<AsynchRhymesQueryParamWrapper, Void, AsynchRhymesQueryParamWrapper> {
+        @Override
+        protected AsynchRhymesQueryParamWrapper doInBackground(AsynchRhymesQueryParamWrapper... query) {
+            Log.d(LOG_TAG, "AsyncRhymesQueryTask doInBackground(): just run rhymes query with Nr.: " + query[0].nr + " and word " + query[0].word);
+            query[0].rhymes = runRhymesQuery(query[0].word);
+            return query[0];
+        }
+
+
+        @Override
+        protected void onPostExecute(AsynchRhymesQueryParamWrapper result) {
+            rhymeResults.add(result.rhymes);
+            if (result.nr == 1) {
+                //prepareAndSendColoredTextView(outputTextView, result.rhymes);
+                broadcastTextViewTextToGui("coloredOutputTextView" ,result.rhymes );
+            }
+            Log.d(LOG_TAG, "AsyncRhymesQueryTask onPostExecute():  just added results of query " + result.nr + "( " + result.word + " ) to rhymeResults-Arraylist");
+        }
+    }
+
+    private void broadcastTextViewTextToGui(String type, String text){
+           broadcastIntent.putExtra( "TYPE",type);
+           broadcastIntent.putExtra( "TEXT",text);
+           sendBroadcast( broadcastIntent );
+    }
+
+    private static Handler timerHandler = new Handler();
+    public static int autoRandomSpeedinMS = 4000;
+    public static Context context;
+    public static boolean enableAutoRandom=false;
+    private  Runnable timerRunnable = new Runnable() {
+        @Override
+        public void run() {
+            findRandomWordPair();
+            timerHandler.postDelayed(this, autoRandomSpeedinMS);
+        }
+    };
+
+
+
+    private  void findRandomWordPair() {
+        broadcastTextViewTextToGui("coloredOutputTextView","dies ist TExt vom Service");
+         //new AsyncRandomRhymesQuery().execute(0);
+        Toast.makeText(context, "findRandomWordPair", Toast.LENGTH_SHORT).show();
+    }
+
+    public  void toggleTimerHandler() {
+        enableAutoRandom = !enableAutoRandom;
+        if(enableAutoRandom){
+            enableAutoRandom = true;
+            timerHandler.postDelayed(timerRunnable, 4000);}
+        else {
+            timerHandler.removeCallbacks(timerRunnable);
+        }
+    }
+    private boolean enableTextToSpeech;
+
+    private class AsyncRandomRhymesQuery extends AsyncTask<Integer, Void, WordRhymesPair> {
+        @Override
+        protected rhymesapp.WordRhymesPair doInBackground(Integer... query) {
+            // Log.d(LOG_TAG, "AsyncRhymesQueryTask doInBackground(): just run rhymes query with Nr.: "+query[0].nr + " and word "+query[0].word  );
+            return Constatics.dataBaseHelper.getRandWordRhymesPair();
+
+        }
+
+
+        @Override
+        protected void onPostExecute(rhymesapp.WordRhymesPair wordRhymesPair) {
+            super.onPostExecute(wordRhymesPair);
+            //    randomRhymesQuery = wordRhymesPair;
+            showRandomWordRhymesPair(wordRhymesPair);
+            if (enableTextToSpeech) {
+                if (textToSpeechEngine == null) {
+                    loadTextToSpeech();
+                    onInit(TextToSpeech.SUCCESS);
+                }
+                speak(wordRhymesPair.getWord());
+            }
+        }
+
+    }
+
+    TextToSpeech textToSpeechEngine;
+
+    @Override
+    public void onInit(int status) {
+        //Log.d(&Speech&, &OnInit - Status [&+status+&]&);
+
+        if (status == TextToSpeech.SUCCESS) {
+            //  Log.d(&Speech&, &Success!&);
+            textToSpeechEngine.setLanguage(Locale.GERMAN);
+        }
+    }
+
+    private void speak(String text) {
+        textToSpeechEngine.speak(text, TextToSpeech.QUEUE_FLUSH, null);
+    }
+
+
+    private void loadTextToSpeech() {
+        textToSpeechEngine = new TextToSpeech(this.getApplicationContext(), this);
+    }
+
+    private void showRandomWordRhymesPair(WordRhymesPair wordRhymesPair) {
+        if (wordRhymesPair == null) return;
+        broadcastTextViewTextToGui("inputTextView", wordRhymesPair.getWord());
+        broadcastTextViewTextToGui("coloredOutputTextView", wordRhymesPair.getRhymes());
+    }
+
+
+
+
+    private String runRhymesQuery(String word) {
+        if (word == null || word.length() == 0) {
+            Log.v(LOG_TAG, "runRhymesQuery: word == null or == \"\" ");
+            return "";
+        }
+        String rhymes = "";
+        rhymes = constatics.dataBaseHelper.getRhymes(word);
+
+        //  rhymes.replaceAll("\\\\n",System.getProperty("line.separator"));
+        //rhymes=rhymes.replaceAll("\\n","\n");
+        return rhymes;//+\\\n sdfsdfsdf";
+    }
 
 
     public class MyBinder extends Binder {
@@ -185,6 +321,29 @@ public class RhymesService extends Service {
     }
 
 
+    private void initDataProvider() {
+        //myDbHelper = getInstance(this);
+        /* TODO: Uncomment*/
+
+        try {
+            constatics.dataBaseHelper.setUpInternalDataBase(Constatics.forceCopyOfDBFile, Constatics.copyDBFileIfDifferentSize);
+        } catch (IOException ioe) {
+
+            String mess = "";
+            if (ioe.getCause() != null) {
+                mess = ioe.getCause().getMessage();
+            }
+            mess += " at Location " + ioe.getMessage();
+            //    Log.e(LOG_TAG,ioe.getCause().getMessage());
+            Log.e(LOG_TAG, mess);
+            Toast.makeText(this, ERR_NOT_OPEN_DB + mess, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        constatics.dataBaseHelper.openDataBase();
+
+
+        //myDbHelper.getTableNames();
+    }
     public void setSystemNotification(){
         /*
 

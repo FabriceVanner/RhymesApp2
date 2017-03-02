@@ -2,9 +2,7 @@ package rhymesapp;
 
 import android.app.Activity;
 import android.app.PendingIntent;
-import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
+import android.content.*;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -212,7 +210,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         // Log.v(TAG, "Inside of onRestoreInstanceState");
     }
 
-
+//########### SERVICE
     protected void setUpPendingIntentForBroadcastToService(){
         //##################### Service
         Intent notificationIntent = new Intent(context, RhymesBaseActivity.class);
@@ -257,6 +255,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
 
 //######################For Service Broadcast#####################################################
 //
+        registerReceiver(broadcastReceiver, new IntentFilter( RhymesService.BROADCAST_ACTION ) );
         context = this.getApplicationContext();
         setUpPendingIntentForBroadcastToService();
 //###############################################################################################
@@ -392,7 +391,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
                     asyncRhymesQuery(inputWords);
 
                     //new AsyncRhymesQueryTask().execute(new AsynchRhymesQueryParamWrapper(1,str));
-                    //prepareAndSendViewText(runRhymesQuery(str));
+                    //prepareAndSendTextView(runRhymesQuery(str));
                     //Toast.makeText(RhymesBaseActivity.this,"inputTextView.setOnKeyListener(): Running Rhymes query with :"+str, Toast.LENGTH_SHORT).show();
                     //inputTextView.setEnabled(false);
                     return true;
@@ -485,27 +484,28 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
                 PendingIntent buttonPlayPendingIntent;
                 if (isChecked) {
                     //for service-broadcast
-                    buttonPlayIntent.putExtra("action", "start");
-
+                    buttonPlayIntent.putExtra("action", "togglePlay");
+                    /*
                     if (enableWakeLock) {
                         wl.acquire();
                     }
                     timerHandler.postDelayed(timerRunnable, 4000);
-
+*/
 
 
 
                 } else {
                     //for service-broadcast
-                    buttonPlayIntent.putExtra("action", "stop");
+                    buttonPlayIntent.putExtra("action", "togglePlay");
 
 
 
-
+/*
                     timerHandler.removeCallbacks(timerRunnable);
                     if (enableWakeLock) {
                         wl.release();
                     }
+                    */
                 }
                 buttonPlayPendingIntent = pendingIntent.getBroadcast(context, 0, buttonPlayIntent, 0);
                 // for service broadcast
@@ -536,8 +536,18 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                Intent serviceIntent = new Intent(RhymesBaseActivity.this, RhymesService.class);
+// SERVICE
+                /*
+        // use this to start and trigger a service
+        Intent intent= new Intent(this, RhymesService.class);
+// potentially add data to the intent
+        //i.putExtra("KEY1", "Value to be used by the service");
 
+        bindService(intent, mConnection,Context.BIND_AUTO_CREATE);
+        */
+        //context.startService(i);
+ // #########################  Use Service as with intent
+                Intent serviceIntent = new Intent(RhymesBaseActivity.this, RhymesService.class);
                 if (isChecked) {
                     if (!RhymesService.IS_SERVICE_RUNNING) {
                         serviceIntent.setAction(Constatics.ACTION.STARTFOREGROUND_ACTION);
@@ -564,8 +574,8 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
 
     private void showRandomWordRhymesPair(WordRhymesPair wordRhymesPair) {
         if (wordRhymesPair == null) return;
-        prepareAndSendViewText(inputTextView, wordRhymesPair.getWord());
-        prepareAndSendColoredViewText(outputTextView, wordRhymesPair.getRhymes());
+        prepareAndSendTextView(inputTextView, wordRhymesPair.getWord());
+        prepareAndSendColoredTextView(outputTextView, wordRhymesPair.getRhymes());
     }
 
 
@@ -618,17 +628,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     public void onResume() {
         Log.d(LOG_TAG, "onResume()");
         super.onResume();
-/*
-// SERVICE
-        // use this to start and trigger a service
-        Intent intent= new Intent(this, RhymesService.class);
-// potentially add data to the intent
-        //i.putExtra("KEY1", "Value to be used by the service");
 
-        bindService(intent, mConnection,
-                Context.BIND_AUTO_CREATE);
-        //context.startService(i);
-*/
     }
 
 
@@ -751,7 +751,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         emptyRhymeResultsArray();
         asyncRhymesQuery(voiceRecogSpeechMatches);
         //System.getProperty("line.separator"));  stringVar.replaceAll("\\\\n", "\\\n"); make sure your \n is in "\n" for it to work.
-        //prepareAndSendViewText(rhymes);
+        //prepareAndSendTextView(rhymes);
     }
 //iah\\nYue\\naua\\nAye-Aye\\na\\neh\\nhaha\\naha\\nAr\\nEth\\ndz\\nRäf\\nträf\\nMarseille\\nBouteille\\nNonpareilles\\nIschewsk\\nBischkek\\nquäk\\nerwäg\\nsäg\\nzersäg\\npräg\\nträg\\nschräg\\npfähl\\nmähl\\nvermähl\\nstähl\\nwähl\\n
 
@@ -773,7 +773,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     /**
      * colorizes text and sends it to output view
      */
-    public void prepareAndSendViewText(TextView view, String text) {
+    public void prepareAndSendTextView(TextView view, String text) {
         ///Spannable spannable = Constatics.guiUtils.colorizeText(text,"\n"); //TODO:
         //outputTextView.setText(spannable,TextView.BufferType.SPANNABLE);
         view.setText(text);
@@ -781,7 +781,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     }
 
 
-    public void prepareAndSendColoredViewText(TextView view, String text) {
+    public void prepareAndSendColoredTextView(TextView view, String text) {
         Spannable spannable = Constatics.guiUtils.colorizeText(text, "\n"); //TODO:
         view.setText(spannable, TextView.BufferType.SPANNABLE);
         //view.setText(text);
@@ -855,7 +855,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         @Override
         protected void onPostExecute(AsynchRhymesQueryParamWrapper result) {
             rhymeResults.add(result.rhymes);
-            if (result.nr == 1) prepareAndSendColoredViewText(outputTextView, result.rhymes);
+            if (result.nr == 1) prepareAndSendColoredTextView(outputTextView, result.rhymes);
             Log.d(LOG_TAG, "AsyncRhymesQueryTask onPostExecute():  just added results of query " + result.nr + "( " + result.word + " ) to rhymeResults-Arraylist");
         }
     }
@@ -946,5 +946,29 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         return message;
     }
 
+// ########## SERVICE
+    private BroadcastReceiver broadcastReceiver = new BroadcastReceiver()
+    {
+
+        @Override
+        public void onReceive( Context context, Intent intent )
+        {
+            updateUI( intent );
+        }
+    };
+    private void updateUI( Intent intent )
+    {
+        String type = intent.getStringExtra("TYPE");
+        String text = intent.getStringExtra("TEXT");
+        if(type =="coloredOutputTextView" ){
+            prepareAndSendColoredTextView(outputTextView,text);
+        }else if(type=="inputTextView"){
+            prepareAndSendTextView(inputTextView,text);
+        }
+
+        String time = intent.getStringExtra( "TIME" );
+
+        //if (result.nr == 1) prepareAndSendColoredTextView(outputTextView, result.rhymes);
+    }
 
 }

@@ -151,7 +151,8 @@ public class GuiUtils {
                         Log.e(LOG_TAG, mess);
                         return;
                     }
-                    rhymesBaseActivity.prepareAndSendViewText(rhymesBaseActivity.getOutputTextView(), rhymesBaseActivity.rhymeResults.get(j));
+                    //rhymesBaseActivity.prepareAndSendTextView(rhymesBaseActivity.getOutputTextView(), rhymesBaseActivity.rhymeResults.get(j));
+                    rhymesBaseActivity.prepareAndSendColoredTextView(rhymesBaseActivity.getOutputTextView(),rhymesBaseActivity.rhymeResults.get(j));
                 }
             };
             // test comment: make internal method
