@@ -50,15 +50,16 @@
         <receiver android:name="rhymesapp.RhymesService$NotificationPlayButtonHandler" />
         <receiver android:name="rhymesapp.RhymesService$NotificationPrevButtonHandler" />
         <receiver android:name="rhymesapp.RhymesService$NotificationSkipButtonHandler" />
+        <receiver android:name="rhymesapp.RhymesBaseActivity$NotificationSkipButtonHandler" />
 <!--
-        <receiver android:name="MyScheduleReceiver" >
+        <receiver android:name="rhymesapp.MyScheduleReceiver" >
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
-        <receiver android:name="MyStartServiceReceiver" >
+        <receiver android:name="rhymesapp.MyStartServiceReceiver" >
         </receiver>
-        -->
+-->
     </application>
 
 </manifest>

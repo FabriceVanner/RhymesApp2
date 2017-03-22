@@ -47,7 +47,7 @@
                 android:scrollHorizontally="true"
                 android:layout_width="match_parent"
 
-                android:minHeight="400dp" android:minWidth="100dp">
+                android:minHeight="400dp" android:minWidth="100dp" android:textColor="@android:color/white">
         </TextView>
     </HorizontalScrollView>
 </ScrollView>

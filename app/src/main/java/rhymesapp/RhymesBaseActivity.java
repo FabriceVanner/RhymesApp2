@@ -4,14 +4,12 @@ import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.*;
 import android.graphics.Color;
-import android.os.AsyncTask;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.PowerManager;
+import android.os.*;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
+import android.support.v4.content.LocalBroadcastManager;
 import android.text.InputType;
 import android.text.Spannable;
 import android.util.Log;
@@ -34,8 +32,6 @@ import static rhymesapp.StringsAndStuff.ERR_NOT_OPEN_DB;
 
 
 public class RhymesBaseActivity extends Activity implements RecognitionListener, View.OnTouchListener, TextToSpeech.OnInitListener { /*implements View.OnKeyListener */
-
-
     private TextView outputTextView;
     private EditText inputTextView;
     private Button voiceRecogButton;
@@ -52,7 +48,6 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     private ToggleButton hmToggle;
     private ToggleButton wakeLockToggle;
     private ToggleButton serviceToggle;
-    //###############################################################################################
     private Intent recognizerIntent;
     private HelperActivity helper = null;
     private String LOG_TAG = "RA";
@@ -80,7 +75,6 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     private boolean enableService;
     public int autoRandomSpeedinMS;
 
-    //###############################################################################################
     TextToSpeech textToSpeechEngine;
 
     PowerManager pm;
@@ -100,24 +94,9 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     private SharedPreferences sharedPreferences;
     private SharedPreferences.Editor editor;
 
-    //###############################################################################################
-    /*
-    private RhymesService rhymesService;
+    /** Communication from service */
+    private static RhymesBaseActivity rhymesBaseActivity;
 
-    private ServiceConnection mConnection = new ServiceConnection() {
-
-        public void onServiceConnected(ComponentName className,
-                                       IBinder binder) {
-            RhymesService.MyBinder b = (RhymesService.MyBinder) binder;
-            rhymesService = b.getService();
-            Toast.makeText(RhymesBaseActivity.this, "Connected", Toast.LENGTH_SHORT)
-                    .show();
-        }
-        public void onServiceDisconnected(ComponentName className) {
-            rhymesService = null;
-        }
-    };
-*/
     public TextView getOutputTextView() {
         return outputTextView;
     }
@@ -210,9 +189,8 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         // Log.v(TAG, "Inside of onRestoreInstanceState");
     }
 
-//########### SERVICE
+//########### COMMUNINICATION FROM ACTIVITY TO SERVICE
     protected void setUpPendingIntentForBroadcastToService(){
-        //##################### Service
         Intent notificationIntent = new Intent(context, RhymesBaseActivity.class);
         notificationIntent.setAction(Constatics.ACTION.MAIN_ACTION);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
@@ -221,11 +199,15 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
                 notificationIntent, 0);
     }
 
+    // Communication from service to activiy via Loacalbroadcast:
+    BroadcastReceiver receiver;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Log.d(LOG_TAG, "onCreate()");
         //http://stackoverflow.com/questions/4553605/difference-between-onstart-and-onresume
         super.onCreate(savedInstanceState);
+        rhymesBaseActivity = this;
         helper = new HelperActivity(this);
         if ((savedInstanceState == null)) {
             constatics = Constatics.getInstance(this);
@@ -255,8 +237,9 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
 
 //######################For Service Broadcast#####################################################
 //
-        registerReceiver(broadcastReceiver, new IntentFilter( RhymesService.BROADCAST_ACTION ) );
+
         context = this.getApplicationContext();
+       // context.registerReceiver(broadcastReceiver, new IntentFilter( RhymesService.BROADCAST_ACTION ) );
         setUpPendingIntentForBroadcastToService();
 //###############################################################################################
         /** */
@@ -480,32 +463,25 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 enableAutoRandom = isChecked;
+
+                //// Local Service Binding Communication
+               // if (mBound) {
+                    // Call a method from the LocalService.
+                    // However, if this call were something that might hang, then this request should
+                    // occur in a separate thread to avoid slowing down the activity performance.
+                   // int num = mService.getRandomNumber();
+                   // Toast.makeText(this, "number: " + num, Toast.LENGTH_SHORT).show();
+                //}
+
+
                 Intent buttonPlayIntent = new Intent(context, RhymesService.NotificationPlayButtonHandler.class);
                 PendingIntent buttonPlayPendingIntent;
                 if (isChecked) {
                     //for service-broadcast
                     buttonPlayIntent.putExtra("action", "togglePlay");
-                    /*
-                    if (enableWakeLock) {
-                        wl.acquire();
-                    }
-                    timerHandler.postDelayed(timerRunnable, 4000);
-*/
-
-
-
                 } else {
                     //for service-broadcast
                     buttonPlayIntent.putExtra("action", "togglePlay");
-
-
-
-/*
-                    timerHandler.removeCallbacks(timerRunnable);
-                    if (enableWakeLock) {
-                        wl.release();
-                    }
-                    */
                 }
                 buttonPlayPendingIntent = pendingIntent.getBroadcast(context, 0, buttonPlayIntent, 0);
                 // for service broadcast
@@ -566,6 +542,13 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
 
         });
 
+        // Communication from service to activiy via Loacalbroadcast:
+        receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                updateUI(intent);
+            }
+        };
     }
 
     private void findRandomWordPair() {
@@ -578,14 +561,6 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         prepareAndSendColoredTextView(outputTextView, wordRhymesPair.getRhymes());
     }
 
-
-    private Runnable timerRunnable = new Runnable() {
-        @Override
-        public void run() {
-            findRandomWordPair();
-            timerHandler.postDelayed(this, autoRandomSpeedinMS);
-        }
-    };
 
     public boolean onTouchEvent(MotionEvent event) {
         if (event.getPointerCount() == 2) {
@@ -667,10 +642,37 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
 
     @Override
     protected void onStop() {
+        // Communication from service to activiy via Loacalbroadcast:
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(receiver);
+
+        /*
+        // Local Service Binding Communication
+        if (mBound) {
+            unbindService(mConnection);
+            mBound = false;
+        }
+        */
         Log.d(LOG_TAG, "onStop()");
+        super.onStop();
+
+        //TODO: was soll das:
         super.onDestroy();
     }
 
+    @Override
+    protected void onStart(){
+        super.onStart();
+/*
+        // Local Service Binding Communication
+            Intent intent = new Intent(this, RhymesService.class);
+            bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+            */
+        // Communication from service to activiy via Loacalbroadcast:
+        LocalBroadcastManager.getInstance(this).registerReceiver((receiver),
+                new IntentFilter(RhymesService.COPA_RESULT)
+        );
+
+    }
 
     @Override
     protected void onPause() {
@@ -946,29 +948,43 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         return message;
     }
 
-// ########## SERVICE
-    private BroadcastReceiver broadcastReceiver = new BroadcastReceiver()
-    {
+// ########## Communication from service
+    private void updateUI( Intent intent )    {
 
-        @Override
-        public void onReceive( Context context, Intent intent )
-        {
-            updateUI( intent );
-        }
-    };
-    private void updateUI( Intent intent )
-    {
         String type = intent.getStringExtra("TYPE");
         String text = intent.getStringExtra("TEXT");
+        Toast.makeText(this,"updateUI: "+ type+" "+text,Toast.LENGTH_SHORT).show();
         if(type =="coloredOutputTextView" ){
-            prepareAndSendColoredTextView(outputTextView,text);
+            //prepareAndSendColoredTextView(outputTextView,text);
         }else if(type=="inputTextView"){
             prepareAndSendTextView(inputTextView,text);
         }
-
-        String time = intent.getStringExtra( "TIME" );
-
         //if (result.nr == 1) prepareAndSendColoredTextView(outputTextView, result.rhymes);
     }
+
+
+    // Local Service Binding Communication
+    //RhymesService mService;
+    //boolean mBound = false;
+    /** // Local Service Binding Communication: Defines callbacks for service binding, passed to bindService() */
+    /*
+    private ServiceConnection mConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName className,
+                                       IBinder service) {
+            // We've bound to LocalService, cast the IBinder and get LocalService instance
+            RhymesService.LocalBinder binder = (RhymesService.LocalBinder) service;
+            mService = binder.getService();
+            mBound = true;
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            mBound = false;
+        }
+    };
+
+*/
 
 }

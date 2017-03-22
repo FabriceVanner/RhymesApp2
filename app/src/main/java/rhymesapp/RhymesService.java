@@ -14,6 +14,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.speech.tts.TextToSpeech;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.widget.RemoteViews;
 import android.widget.Toast;
@@ -21,26 +22,39 @@ import com.rhymesapp.R;
 
 import java.io.IOException;
 import java.util.Locale;
+import java.util.Random;
 import java.util.Vector;
 
 import static rhymesapp.StringsAndStuff.ERR_NOT_OPEN_DB;
 
 public class RhymesService extends Service implements TextToSpeech.OnInitListener  {
 
+
+
+
     //http://blog.nkdroidsolutions.com/android-foreground-service-example-tutorial/
     public Vector<String> rhymeResults;
     private Constatics constatics;
     public static final String BROADCAST_ACTION = "rhymesapp";
-    Intent broadcastIntent = new Intent();
-    private final IBinder mBinder = new MyBinder();
+    PendingIntent pendingIntent;
     public static  boolean IS_SERVICE_RUNNING = false;
-
+    private static RhymesService rhymesService;
     //private static BaseActToServiceStorage baseActToServiceStorage;
     private static final String LOG_TAG = "RhymesService";
 
+    static final public String COPA_RESULT = "com.controlj.copame.backend.COPAService.REQUEST_PROCESSED";
+
+    static final public String COPA_MESSAGE = "com.controlj.copame.backend.COPAService.COPA_MSG";
+
+
+
+
+    LocalBroadcastManager broadcaster;
     @Override
     public void onCreate() {
         super.onCreate();
+        broadcaster = LocalBroadcastManager.getInstance(this);
+        rhymesService = this;
         constatics = Constatics.getInstance(this);
         initDataProvider();
     }
@@ -132,12 +146,12 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     /**
      * Called when user clicks the "play/pause" button on the on-going system Notification.
      */
-    public  class NotificationPlayButtonHandler extends BroadcastReceiver {
+    public static class NotificationPlayButtonHandler extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getStringExtra("action");
             Toast.makeText(context,"Play Clicked "+ action,Toast.LENGTH_SHORT).show();
-            toggleTimerHandler();
+            rhymesService.toggleTimerHandler();
         }
     }
 
@@ -168,7 +182,6 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         @Override
         public void onReceive(Context context, Intent intent) {
             Toast.makeText(context,"Close Clicked",Toast.LENGTH_SHORT).show();
-
         }
     }
 
@@ -176,7 +189,6 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     /**
      * Task used to run the rhyme-queries in background
      */
-
     private class AsyncRhymesQueryTask extends AsyncTask<AsynchRhymesQueryParamWrapper, Void, AsynchRhymesQueryParamWrapper> {
         @Override
         protected AsynchRhymesQueryParamWrapper doInBackground(AsynchRhymesQueryParamWrapper... query) {
@@ -191,23 +203,45 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
             rhymeResults.add(result.rhymes);
             if (result.nr == 1) {
                 //prepareAndSendColoredTextView(outputTextView, result.rhymes);
-                broadcastTextViewTextToGui("coloredOutputTextView" ,result.rhymes );
+                ///broadcastTextViewTextToGui("coloredOutputTextView" ,result.rhymes );
             }
             Log.d(LOG_TAG, "AsyncRhymesQueryTask onPostExecute():  just added results of query " + result.nr + "( " + result.word + " ) to rhymeResults-Arraylist");
         }
     }
 
+
+    public void sendResult(String message) {
+        Intent intent = new Intent(COPA_RESULT);
+        if(message != null)
+            intent.putExtra(COPA_MESSAGE, message);
+        broadcaster.sendBroadcast(intent);
+    }
+      //   SERVICE TO ACTIVITY COMMUNICATION
     private void broadcastTextViewTextToGui(String type, String text){
-           broadcastIntent.putExtra( "TYPE",type);
-           broadcastIntent.putExtra( "TEXT",text);
-           sendBroadcast( broadcastIntent );
+        //Intent textViewToGuiIntent = new Intent(context, RhymesBaseActivity.ServiceTextToGuiHandler.class);
+        //PendingIntent textViewToGuiPendingIntent;
+
+        Intent textViewToGuiIntent = new Intent(COPA_RESULT);
+        textViewToGuiIntent.putExtra( "TYPE",type);
+        textViewToGuiIntent.putExtra( "TEXT",text);
+        broadcaster.sendBroadcast(textViewToGuiIntent);
+        /*
+        textViewToGuiPendingIntent = pendingIntent.getBroadcast(context, 0, textViewToGuiIntent, 0);
+        // for service broadcast
+        try {
+            // Perform the operation associated with our pendingIntent
+            textViewToGuiPendingIntent.send();
+        } catch (PendingIntent.CanceledException e) {
+            e.printStackTrace();
+        }
+        */
     }
 
     private static Handler timerHandler = new Handler();
     public static int autoRandomSpeedinMS = 4000;
     public static Context context;
     public static boolean enableAutoRandom=false;
-    private  Runnable timerRunnable = new Runnable() {
+    private Runnable timerRunnable = new Runnable() {
         @Override
         public void run() {
             findRandomWordPair();
@@ -217,13 +251,13 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
 
 
 
-    private  void findRandomWordPair() {
-        broadcastTextViewTextToGui("coloredOutputTextView","dies ist TExt vom Service");
-         //new AsyncRandomRhymesQuery().execute(0);
-        Toast.makeText(context, "findRandomWordPair", Toast.LENGTH_SHORT).show();
+    private void findRandomWordPair() {
+        //broadcastTextViewTextToGui("coloredOutputTextView","dies ist TExt vom Service");
+        //Toast.makeText(context, "findRandomWordPair()", Toast.LENGTH_SHORT).show();
+        new AsyncRandomRhymesQuery().execute(0);
     }
 
-    public  void toggleTimerHandler() {
+    public void toggleTimerHandler() {
         enableAutoRandom = !enableAutoRandom;
         if(enableAutoRandom){
             enableAutoRandom = true;
@@ -239,7 +273,6 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         protected rhymesapp.WordRhymesPair doInBackground(Integer... query) {
             // Log.d(LOG_TAG, "AsyncRhymesQueryTask doInBackground(): just run rhymes query with Nr.: "+query[0].nr + " and word "+query[0].word  );
             return Constatics.dataBaseHelper.getRandWordRhymesPair();
-
         }
 
 
@@ -303,22 +336,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     }
 
 
-    public class MyBinder extends Binder {
-        RhymesService getService() {
-            return RhymesService.this;
-        }
-    }
 
-    public RhymesService() {
-        System.out.println();
-    }
-
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        // TODO: Return the communication channel to the service.
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
 
 
     private void initDataProvider() {
@@ -357,4 +375,34 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         startForeground(ONGOING_NOTIFICATION_ID, notification);
 */
     }
+
+
+
+    private final IBinder mBinder = new LocalBinder();
+    // Random number generator
+    private final Random mGenerator = new Random();
+
+    /**
+     * Class used for the client Binder.  Because we know this service always
+     * runs in the same process as its clients, we don't need to deal with IPC.
+     */
+    public class LocalBinder extends Binder {
+        RhymesService getService() {
+            // Return this instance of LocalService so clients can call public methods
+            return RhymesService.this;
+        }
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return mBinder;
+    }
+
+    /** method for clients */
+    public int getRandomNumber() {
+        return mGenerator.nextInt(100);
+    }
 }
+
+
+
