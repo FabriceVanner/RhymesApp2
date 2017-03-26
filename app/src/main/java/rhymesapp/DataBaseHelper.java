@@ -59,7 +59,11 @@ public class DataBaseHelper extends SQLiteOpenHelper {
     //private RhymesBaseActivity RA;
     /** the hashmap used to faster find the relevant db-rows*/
     private static HashMap<String, Integer> wordIndexHashMap;
+
     private static DataBaseHelper dataBaseHelperSingleton;
+    private static IOUtils ioUtils;
+
+
     /** used for getting random rhymes from database*/
     private static Random random;
 
@@ -86,6 +90,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
     private DataBaseHelper(Context context) {
         super(context, getDbFilename(), null, 1);
         this.myContext = context;
+        this.ioUtils = IOUtils.getInstance(this.myContext);
         //  this.RA = RA;
     }
 
@@ -122,14 +127,14 @@ public class DataBaseHelper extends SQLiteOpenHelper {
 
                 // ist thread schon gestarted?
                 /*
-                if (((Constatics.IOUtils.getMyHashMapThread().getState().compareTo(Thread.State.NEW)) ==0)) {
-                    Constatics.IOUtils.sethandler();
-                    Constatics.IOUtils.getMyHashMapThread().start();
+                if (((ioUtils.getMyHashMapThread().getState().compareTo(Thread.State.NEW)) ==0)) {
+                    ioUtils.sethandler();
+                    ioUtils.getMyHashMapThread().start();
                 }
                 */
                 return;
             }else{
-                this.setWordIndexHashMap(Constatics.IOUtils.deserializeHashMap());
+                this.setWordIndexHashMap(ioUtils.deserializeHashMap());
                 setHmReadyLoaded(true);
             }
     }
@@ -141,7 +146,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
         @Override
         protected Bundle doInBackground(Void... params) {
             Log.d(LOG_TAG, "AsyncHMLoaderTask doInBackground():  starting to load HM...");
-            HashMap hm = Constatics.IOUtils.deserializeHashMap();
+            HashMap hm = ioUtils.deserializeHashMap();
             Bundle bundle = new Bundle();
             bundle.putBoolean("hmReadyLoaded",true);
             bundle.putSerializable("hashMap",hm);
@@ -202,11 +207,8 @@ public class DataBaseHelper extends SQLiteOpenHelper {
         state.putLong("dbEntriesTableRowCount",dbEntriesTableRowCount);
     }
 
-
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         Constatics.setEnableHashMapPrefetch(savedInstanceState.getBoolean("isEnableHashMapPrefetch"));
-
-
         if(Constatics.isEnableHashMapPrefetch()) {
             loadHashMapPrefetch();
             //setWordIndexHashMap((HashMap) savedInstanceState.getSerializable("wordIndexHashMap"));
@@ -264,7 +266,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
         if(dbFileisLoadable)return;
 
         /**TODO: er ruft in getSetDBFile() wie auch in filesAreEqualSize() 2 mal hintereinander die getOutputFile() methode auf*/
-        if(getInternalDBFile()==null) setInternalDBFile(Constatics.IOUtils.getOutputFile(dbDstLocation, getDbFilename()));
+        if(getInternalDBFile()==null) setInternalDBFile(ioUtils.getOutputFile(dbDstLocation, getDbFilename()));
         //check of file to be copied is db-file
         if (!getInternalDBFile().exists()){
             Log.v(LOG_TAG,INTERNAL_DB_NOT_EXISTS + dbDstLocation.toString());
@@ -276,13 +278,13 @@ public class DataBaseHelper extends SQLiteOpenHelper {
                 return;
             }
         }
-        if(getExternalDBStreamOfFile()==null) setExternalDBStreamOfFile(Constatics.IOUtils.getInputStream(dbSrcLocation,getDbFilename()));
+        if(getExternalDBStreamOfFile()==null) setExternalDBStreamOfFile(ioUtils.getInputStream(dbSrcLocation,getDbFilename()));
 
         if (forceDBCopy){
             copyDb();
             return;
         }
-        if(copyIfDifferentSize &&!Constatics.IOUtils.filesAreEqualSize(getExternalDBStreamOfFile(), getInternalDBFile(), Constatics.acceptableFileSizeDifference)){
+        if(copyIfDifferentSize &&!ioUtils.filesAreEqualSize(getExternalDBStreamOfFile(), getInternalDBFile(), Constatics.acceptableFileSizeDifference)){
             copyDb();
             return;
         }
@@ -291,7 +293,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
 
     private void copyDb() throws IOException {
         this.getReadableDatabase();//TODO: what for?
-        Constatics.IOUtils.copyStreams(getExternalDBStreamOfFile(), new FileOutputStream(getInternalDBFile()));
+        ioUtils.copyStreams(getExternalDBStreamOfFile(), new FileOutputStream(getInternalDBFile()));
     }
 
 
@@ -371,7 +373,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
                 return getRandomRhymesDirectFromDB();
         } else {
             String mess = "getRandWordRhymesPair(): DB or HM not loaded or copied to internal mem yet";
-            Constatics.IOUtils.postToastMessageToGuiThread(mess);
+            ioUtils.postToastMessageToGuiThread(mess);
             Log.e(LOG_TAG,mess);
             return null;
         }
@@ -421,7 +423,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
             }
         } else {
             String mess = "DB or HM not loaded or copied to internal mem yet";
-            Constatics.IOUtils.postToastMessageToGuiThread(mess);
+            ioUtils.postToastMessageToGuiThread(mess);
             Log.e(LOG_TAG,"getRhymes(): "+mess);
             return "";
         }
@@ -470,7 +472,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
         String msg;
         if (rhymes==""){
             msg =  "Not in DB (in any Case): " + word;
-            Constatics.IOUtils.postToastMessageToGuiThread(msg);
+            ioUtils.postToastMessageToGuiThread(msg);
         }else{
            msg= "getRhymesDirectFromDB(): found "+ word+" in DB";
         }
@@ -536,7 +538,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
 
         if(!found) {
             String mess = "Not in HM(DB): " + word;
-            Constatics.IOUtils.postToastMessageToGuiThread(mess);
+            ioUtils.postToastMessageToGuiThread(mess);
            // Toast.makeText(myContext,mess , Toast.LENGTH_SHORT).show();
             return "";
         }
@@ -548,7 +550,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
 
         if (rhymes==""){
             String mess =  "Not in DB: " + word;
-            Constatics.IOUtils.postToastMessageToGuiThread(mess);
+            ioUtils.postToastMessageToGuiThread(mess);
             return "";
         }
         Log.i(LOG_TAG,"getRhymesViaHashMap(): found "+ word+" in DB");

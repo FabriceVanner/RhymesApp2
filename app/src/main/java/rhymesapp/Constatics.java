@@ -105,7 +105,7 @@ public class Constatics {
     }
 
     private Constatics(RhymesBaseActivity rhymesBaseActivity) {
-        dataBaseHelper= DataBaseHelper.getInstance(rhymesBaseActivity.getApplicationContext());
+        //dataBaseHelper= DataBaseHelper.getInstance(rhymesBaseActivity.getApplicationContext());
         IOUtils = IOUtils.getInstance(rhymesBaseActivity.getApplicationContext());
         guiUtils = GuiUtils.getInstance(rhymesBaseActivity);
         //  this.RA = RA;

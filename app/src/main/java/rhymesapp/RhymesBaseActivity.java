@@ -4,11 +4,9 @@ import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.*;
 import android.graphics.Color;
-import android.os.*;
-import android.speech.RecognitionListener;
-import android.speech.RecognizerIntent;
-import android.speech.SpeechRecognizer;
-import android.speech.tts.TextToSpeech;
+import android.os.Bundle;
+import android.os.IBinder;
+import android.os.PowerManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.text.InputType;
 import android.text.Spannable;
@@ -22,16 +20,22 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.*;
 import com.rhymesapp.R;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Locale;
 import java.util.Vector;
 
 import static rhymesapp.Constatics.*;
-import static rhymesapp.StringsAndStuff.ERR_NOT_OPEN_DB;
 
 
-public class RhymesBaseActivity extends Activity implements RecognitionListener, View.OnTouchListener, TextToSpeech.OnInitListener { /*implements View.OnKeyListener */
+public class RhymesBaseActivity extends Activity implements View.OnTouchListener { /*implements View.OnKeyListener */
+
+    private String LOG_TAG = "RA";
+    private Context context;
+    /**
+     * Communication from service to activity
+     */
+    private static RhymesBaseActivity rhymesBaseActivity;
+
+    // GUI ELEMENTS:
     private TextView outputTextView;
     private EditText inputTextView;
     private Button voiceRecogButton;
@@ -40,7 +44,6 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     private ProgressBar recvolumeProgrBar;
     private SeekBar textFieldsSizeBar;
     private SeekBar autoRandomSpeedBar;
-    private SpeechRecognizer speech = null;
 
     private ToggleButton associationsToggle;
     private ToggleButton autoRandomToggle;
@@ -48,95 +51,46 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
     private ToggleButton hmToggle;
     private ToggleButton wakeLockToggle;
     private ToggleButton serviceToggle;
-    private Intent recognizerIntent;
+
+// CLASS-OBJECTS
     private HelperActivity helper = null;
-    private String LOG_TAG = "RA";
-    private Handler timerHandler = new Handler();
+    private GuiUtils guiUtils;
 
-    private Context context;
-    /** for broadcasting to service*/
-    PendingIntent pendingIntent;
 
-    //private boolean enableSpeechRecognition = true;
-// Pinch Zoom:
-    final static float STEP = 200;
-
-    float mRatio = 1.0f;
-    int mBaseDist;
-    float mBaseRatio;
-    float fontsize = 13;
-    //
-    //private DataBaseHelper myDbHelper;
-    private Constatics constatics;
+    //gui settings
     private boolean enableSpeechRecognition;
-    private boolean enableTextToSpeech;
     private boolean enableAutoRandom;
+    //public int autoRandomSpeedinMS;
+
+    // options
     private boolean enableHashMapPrefetch;
     private boolean enableService;
-    public int autoRandomSpeedinMS;
+    //private boolean enableSpeechRecognition = true;
 
-    TextToSpeech textToSpeechEngine;
+    //saving settings:
+    private SharedPreferences sharedPreferences;
+    private SharedPreferences.Editor editor;
 
+
+    //ACITVITY WAKE LOCK
     PowerManager pm;
     PowerManager.WakeLock wl;
     protected boolean enableWakeLock = false;
 
     /**
      * to store the results retourned by the async rhyme-queries (for the speak-recog. results)
+     * TODO: sind gar nicht mehr async (zumindest solange die ergebnisse per broadcast(seriell) hierhin übertragen werden)
      */
     public Vector<String> rhymeResults;
 
 
-    public WordRhymesPair randomRhymesQuery;
-
     private InputMethodManager im;
 
-    private SharedPreferences sharedPreferences;
-    private SharedPreferences.Editor editor;
-
-    /** Communication from service */
-    private static RhymesBaseActivity rhymesBaseActivity;
-
-    public TextView getOutputTextView() {
-        return outputTextView;
-    }
-
-    public void setOutputTextView(TextView outputTextView) {
-        this.outputTextView = outputTextView;
-    }
-
-    public EditText getInputTextView() {
-        return inputTextView;
-    }
-
-    public void setInputTextView(EditText inputTextView) {
-        this.inputTextView = inputTextView;
-    }
 
 
-    private void initDataProvider() {
-        //myDbHelper = getInstance(this);
-        /* TODO: Uncomment*/
-
-        try {
-            constatics.dataBaseHelper.setUpInternalDataBase(Constatics.forceCopyOfDBFile, Constatics.copyDBFileIfDifferentSize);
-        } catch (IOException ioe) {
-
-            String mess = "";
-            if (ioe.getCause() != null) {
-                mess = ioe.getCause().getMessage();
-            }
-            mess += " at Location " + ioe.getMessage();
-            //    Log.e(LOG_TAG,ioe.getCause().getMessage());
-            Log.e(LOG_TAG, mess);
-            Toast.makeText(RhymesBaseActivity.this, ERR_NOT_OPEN_DB + mess, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        constatics.dataBaseHelper.openDataBase();
 
 
-        //myDbHelper.getTableNames();
-    }
+// SETTINGS AND OPTIONS STORING
 
     @Override
     protected void onSaveInstanceState(Bundle state) {
@@ -147,14 +101,14 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
 
         state.putBoolean("enableAutoRandom", enableAutoRandom);
         state.putBoolean("enableSpeechRecognition", enableSpeechRecognition);
-        state.putBoolean("enableTextToSpeech", enableTextToSpeech);
+        //state.putBoolean("enableTextToSpeech", enableTextToSpeech);
         state.putBoolean("enableWakeLock", enableWakeLock);
         state.putBoolean("enableHashMapPrefetch", enableHashMapPrefetch);
         state.putCharSequence("outputTextViewText", outputTextView.getText());
         state.putCharSequence("inputTextViewText", inputTextView.getText());
         state.putSerializable("rhymeResultsArray", rhymeResults);
 
-        constatics.onSaveInstanceState(state);
+        // constatics.onSaveInstanceState(state);
     }
 
     @Override
@@ -173,49 +127,63 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         if (hmToggle != null) {
             hmToggle.setChecked(enableHashMapPrefetch);
         }
-        if (constatics != null) {
-            constatics.onRestoreInstanceState(savedInstanceState);
-        } else {
-            constatics = Constatics.getInstance(this);
-        }
+
 
         outputTextView.setText(savedInstanceState.getCharSequence("outputTextViewText"));
         inputTextView.setText(savedInstanceState.getCharSequence("inputTextViewText"));
         enableAutoRandom = savedInstanceState.getBoolean("enableAutoRandom", false);
         enableWakeLock = savedInstanceState.getBoolean("enableWakeLock", enableWakeLockDefault);
-        enableTextToSpeech = (savedInstanceState.getBoolean("enableTextToSpeech", enableHashMapPrefetchDefault));
+        //  enableTextToSpeech = (savedInstanceState.getBoolean("enableTextToSpeech", enableHashMapPrefetchDefault));
 
 
         // Log.v(TAG, "Inside of onRestoreInstanceState");
     }
 
-//########### COMMUNINICATION FROM ACTIVITY TO SERVICE
-    protected void setUpPendingIntentForBroadcastToService(){
-        Intent notificationIntent = new Intent(context, RhymesBaseActivity.class);
-        notificationIntent.setAction(Constatics.ACTION.MAIN_ACTION);
-        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-         pendingIntent = PendingIntent.getActivity(context, 0,
-                notificationIntent, 0);
+    /**
+     * store settings in file
+     */
+    protected void savePersistentSettings() {
+        //editor.putBoolean("enableTextToSpeech", enableTextToSpeech);
+        editor.putInt("autoRandomSpeedinMS", rhymesService.autoRandomSpeedinMS);
+        editor.putBoolean("enableAutoRandom", enableAutoRandom);
+        editor.putBoolean("loadHashMapPrefetch", enableHashMapPrefetch);
+        editor.commit();
+
     }
 
-    // Communication from service to activiy via Loacalbroadcast:
-    BroadcastReceiver receiver;
+    /**
+     * restore settings from file
+     */
+    protected void loadPersistentSettings() {
+        //SharedPreferences sharedPreferences = getPreferences(MODE_PRIVATE);
+        rhymesService.autoRandomSpeedinMS = (sharedPreferences.getInt("autoRandomSpeedinMS", autoRandomSpeedinMSDefault));
+        enableAutoRandom = sharedPreferences.getBoolean("enableAutoRandom", false);
+        //enableTextToSpeech = sharedPreferences.getBoolean("enableTextToSpeech", enableTextToSpeechDefault);
+        enableHashMapPrefetch = sharedPreferences.getBoolean("loadHashMapPrefetch", enableHashMapPrefetchDefault);
+
+
+    }
+
+
+// LIFE-CYCLE
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Log.d(LOG_TAG, "onCreate()");
         //http://stackoverflow.com/questions/4553605/difference-between-onstart-and-onresume
         super.onCreate(savedInstanceState);
+
+        context = this.getApplicationContext();
         rhymesBaseActivity = this;
         helper = new HelperActivity(this);
+        guiUtils = GuiUtils.getInstance(context);
+
+
         if ((savedInstanceState == null)) {
-            constatics = Constatics.getInstance(this);
             enableSpeechRecognition = enableSpeechRecognitionDefault;
             enableHashMapPrefetch = enableHashMapPrefetchDefault;
-            autoRandomSpeedinMS = autoRandomSpeedinMSDefault;
+            rhymesService.autoRandomSpeedinMS = autoRandomSpeedinMSDefault;
             enableWakeLock = enableWakeLockDefault;
-            initDataProvider();
         }
         //TODO http://blog.cindypotvin.com/saving-preferences-in-your-android-application/
         /** save settings in file*/
@@ -226,8 +194,8 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         */
 
         /** continue app, while screen off*/
-        pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "My Tag");
+        //   pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        //   wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "My Tag");
 
         rhymeResults = new Vector<>();
 
@@ -235,13 +203,11 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         setContentView(R.layout.activity_main);
 
 
-//######################For Service Broadcast#####################################################
-//
-
-        context = this.getApplicationContext();
-       // context.registerReceiver(broadcastReceiver, new IntentFilter( RhymesService.BROADCAST_ACTION ) );
+        //For Service Broadcast
+        // context.registerReceiver(broadcastReceiver, new IntentFilter( RhymesService.BROADCAST_ACTION ) );
         setUpPendingIntentForBroadcastToService();
-//###############################################################################################
+
+        //gui elements assign
         /** */
         recvolumeProgrBar = (ProgressBar) findViewById(R.id.progressBar);
         voiceRecogButton = (Button) findViewById(R.id.voiceRecogButton);
@@ -251,7 +217,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         autoRandomSpeedBar = (SeekBar) findViewById(R.id.autoRandomSpeedBar);
         autoRandomSpeedBar.setMax(15000);
         autoRandomSpeedBar.setBottom(3000);
-        autoRandomSpeedBar.setProgress((int) autoRandomSpeedinMS);
+        autoRandomSpeedBar.setProgress((int) autoRandomSpeedinMSDefault);
 
         outputTextView = (TextView) findViewById(R.id.outputTextView);
         inputTextView = (EditText) findViewById(R.id.inputText);
@@ -280,37 +246,19 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
 
         //outputTextView.requestFocus();
         recvolumeProgrBar.setVisibility(View.INVISIBLE);
-        //###############################################################################################
-
-        if (enableSpeechRecognition) {
-            speech = SpeechRecognizer.createSpeechRecognizer(this);
-            speech.setRecognitionListener(this);
-            recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-            if (Constatics.addEngSpeechRecog) {
-                recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE,
-                        "en");
-            }
-            recognizerIntent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE,
-                    this.getPackageName());
-            //recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH);
-            recognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
-        }
-
-        if (enableTextToSpeech) {
-            textToSpeechEngine = new TextToSpeech(this, this);
-        }
 
 
+        // listeners etc.
         randomQueryButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                findRandomWordPair();
+                rhymesService.findRandomWordPair();
             }
         });
         autoRandomSpeedBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                autoRandomSpeedinMS = progress;
+                rhymesService.autoRandomSpeedinMS = progress;
             }
 
             @Override
@@ -325,13 +273,11 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
 
         });
 
-
         keysButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 inputTextView.setCursorVisible(true);
                 inputTextView.setInputType(InputType.TYPE_TEXT_FLAG_AUTO_COMPLETE);
-
                 im.showSoftInput(inputTextView, InputMethodManager.SHOW_IMPLICIT);
             }
         });
@@ -349,7 +295,8 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 if (actionId == EditorInfo.IME_ACTION_NEXT || (actionId == EditorInfo.IME_ACTION_DONE) || ((event.getKeyCode() == KeyEvent.KEYCODE_ENTER) && (event.getAction() == KeyEvent.ACTION_DOWN))) {
-                    if (!constatics.dataBaseHelper.isDbReadyLoaded()) return false;
+
+                    if (!rhymesService.isDbReadyLoaded()) return false;
 
                     // close keyboard:
                     //  getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
@@ -367,16 +314,12 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
                         inputWords.add(word);
                     }
 
-                    ArrayList<Integer> delimiterIndexes = Constatics.guiUtils.getDelimiterIndexes(viewString, ", ");
-                    Constatics.guiUtils.setClickableWordsInTextView(inputTextView, viewString, delimiterIndexes);
+                    ArrayList<Integer> delimiterIndexes = guiUtils.getDelimiterIndexes(viewString, ", ");
+                    guiUtils.setClickableWordsInTextView(inputTextView, viewString, delimiterIndexes);
 
-                    emptyRhymeResultsArray();
-                    asyncRhymesQuery(inputWords);
-
-                    //new AsyncRhymesQueryTask().execute(new AsynchRhymesQueryParamWrapper(1,str));
-                    //prepareAndSendTextView(runRhymesQuery(str));
-                    //Toast.makeText(RhymesBaseActivity.this,"inputTextView.setOnKeyListener(): Running Rhymes query with :"+str, Toast.LENGTH_SHORT).show();
-                    //inputTextView.setEnabled(false);
+                    rhymeResults.clear();
+                    //TODO: SEND COMMANDS TO SERVICE
+                    rhymesService.asyncRhymesQuery(inputWords);
                     return true;
                 } else {
                     return false;
@@ -404,21 +347,21 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
             }
 
         });
-
+/*
         hmToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 //loadHashMapPrefetch = isChecked;
                 constatics.setEnableHashMapPrefetch(isChecked);
                 if (isChecked) {
-                    constatics.dataBaseHelper.loadHashMapPrefetch();
+                    dataBaseHelper.loadHashMapPrefetch();
                 } else {
-                    constatics.dataBaseHelper.setWordIndexHashMap(null);
+                    dataBaseHelper.setWordIndexHashMap(null);
                     Log.d(LOG_TAG, "hmSwitch: just set HashMap to null ");
                 }
             }
         });
-
+*/
 
         voiceRecogButton.setOnTouchListener(new View.OnTouchListener() {
             @Override
@@ -428,17 +371,18 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
                         v.setBackgroundColor(Color.GREEN);
                         inputTextView.setVisibility(View.INVISIBLE);
                         if (enableSpeechRecognition) {
-                            speech.startListening(recognizerIntent);
+                            rhymesService.toggleVoiceRecognition();
+                            //TODO: -->fragmeint
                             recvolumeProgrBar.setVisibility(View.VISIBLE);
                             recvolumeProgrBar.setIndeterminate(true);
                         }
-
                         return true;
                     case MotionEvent.ACTION_UP:
                         v.setBackgroundColor(Color.GREEN);
                         inputTextView.setVisibility(View.VISIBLE);
                         if (enableSpeechRecognition) {
-                            speech.stopListening();
+                            rhymesService.toggleVoiceRecognition();
+                            //TODO: -->fragmeint
                             recvolumeProgrBar.setIndeterminate(false);
                             recvolumeProgrBar.setVisibility(View.INVISIBLE);
                         }
@@ -465,32 +409,27 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
                 enableAutoRandom = isChecked;
 
                 //// Local Service Binding Communication
-               // if (mBound) {
-                    // Call a method from the LocalService.
-                    // However, if this call were something that might hang, then this request should
-                    // occur in a separate thread to avoid slowing down the activity performance.
-                   // int num = mService.getRandomNumber();
-                   // Toast.makeText(this, "number: " + num, Toast.LENGTH_SHORT).show();
-                //}
-
-
+                if (rhymesServiceIsBound) {
+                    // Call a method from the LocalService.                // However, if this call were something that might hang, then this request should                // occur in a separate thread to avoid slowing down the activity performance.
+                    rhymesService.toggleTimerHandler();
+                }
+                /*
                 Intent buttonPlayIntent = new Intent(context, RhymesService.NotificationPlayButtonHandler.class);
                 PendingIntent buttonPlayPendingIntent;
-                if (isChecked) {
-                    //for service-broadcast
+                    //for intent broadcast to service
                     buttonPlayIntent.putExtra("action", "togglePlay");
-                } else {
-                    //for service-broadcast
-                    buttonPlayIntent.putExtra("action", "togglePlay");
-                }
+
                 buttonPlayPendingIntent = pendingIntent.getBroadcast(context, 0, buttonPlayIntent, 0);
-                // for service broadcast
+                */
+                /*
+                //for intent broadcast to service
                 try {
                     // Perform the operation associated with our pendingIntent
                     buttonPlayPendingIntent.send();
                 } catch (PendingIntent.CanceledException e) {
                     e.printStackTrace();
                 }
+                */
             }
 
 
@@ -500,9 +439,9 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
-                    enableTextToSpeech = true;
+                    rhymesService.enableTextToSpeech = true;
                 } else {
-                    enableTextToSpeech = false;
+                    rhymesService.enableTextToSpeech = false;
                 }
             }
 
@@ -512,17 +451,17 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-// SERVICE
-                /*
-        // use this to start and trigger a service
-        Intent intent= new Intent(this, RhymesService.class);
-// potentially add data to the intent
-        //i.putExtra("KEY1", "Value to be used by the service");
+                // SERVICE
+                            /*
+                    // use this to start and trigger a service
+                    Intent intent= new Intent(this, RhymesService.class);
+            // potentially add data to the intent
+                    //i.putExtra("KEY1", "Value to be used by the service");
 
-        bindService(intent, mConnection,Context.BIND_AUTO_CREATE);
-        */
-        //context.startService(i);
- // #########################  Use Service as with intent
+                    bindService(intent, rhymesServiceBindConnection,Context.BIND_AUTO_CREATE);
+                    */
+                //context.startService(i);
+                // #########################  Use Service as with intent
                 Intent serviceIntent = new Intent(RhymesBaseActivity.this, RhymesService.class);
                 if (isChecked) {
                     if (!RhymesService.IS_SERVICE_RUNNING) {
@@ -543,7 +482,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         });
 
         // Communication from service to activiy via Loacalbroadcast:
-        receiver = new BroadcastReceiver() {
+        broadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 updateUI(intent);
@@ -551,29 +490,189 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         };
     }
 
-    private void findRandomWordPair() {
-        new AsyncRandomRhymesQuery().execute(0);
+    @Override
+    public void onResume() {
+        Log.d(LOG_TAG, "onResume()");
+        super.onResume();
+
     }
 
-    private void showRandomWordRhymesPair(WordRhymesPair wordRhymesPair) {
-        if (wordRhymesPair == null) return;
-        prepareAndSendTextView(inputTextView, wordRhymesPair.getWord());
-        prepareAndSendColoredTextView(outputTextView, wordRhymesPair.getRhymes());
+    @Override
+    protected void onDestroy() {
+        Log.d(LOG_TAG, "onDestroy()");
+        super.onDestroy();
     }
 
+    @Override
+    protected void onStop() {
+        // Communication from service to activiy via Loacalbroadcast:
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(broadcastReceiver);
+
+
+        // Local Service Binding Communication
+        if (rhymesServiceIsBound) {
+            unbindService(rhymesServiceBindConnection);
+            rhymesServiceIsBound = false;
+        }
+
+        Log.d(LOG_TAG, "onStop()");
+        super.onStop();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        // Local Service Binding Communication
+        Intent intent = new Intent(this, RhymesService.class);
+        bindService(intent, rhymesServiceBindConnection, Context.BIND_AUTO_CREATE);
+
+
+        // Communication from service to activiy via Loacalbroadcast:
+        LocalBroadcastManager.getInstance(this).registerReceiver((broadcastReceiver),
+                new IntentFilter(RhymesService.COPA_RESULT)
+        );
+
+    }
+
+    @Override
+    protected void onPause() {
+        Log.i(LOG_TAG, "onPause()");
+
+        //SERVICE:
+        unbindService(rhymesServiceBindConnection);
+        rhymesServiceIsBound = false;
+        super.onPause();
+
+    }
+
+
+// GUI
+    /**
+     * colorizes text and sends it to output view
+     */
+    public void prepareAndSendTextView(TextView view, String text) {
+        view.setText(text);
+    }
+
+    public void prepareAndSendColoredTextView(TextView view, String text) {
+        Spannable spannable = guiUtils.colorizeText(text, "\n");
+        view.setText(spannable, TextView.BufferType.SPANNABLE);
+        //view.setText(text);
+
+    }
+
+    public TextView getOutputTextView() {
+        return outputTextView;
+    }
+
+    public void setOutputTextView(TextView outputTextView) {
+        this.outputTextView = outputTextView;
+    }
+
+    public EditText getInputTextView() {
+        return inputTextView;
+    }
+
+    public void setInputTextView(EditText inputTextView) {
+        this.inputTextView = inputTextView;
+    }
+
+
+
+// ACTIVITY / SERVICE COMMUNICATION
+
+    /*
+    broadcasted intent from service gets split to commands
+     */
+    private void updateUI(Intent intent) {
+        String type = intent.getStringExtra("TYPE");
+        String text = intent.getStringExtra("TEXT");
+        //Toast.makeText(this,"updateUI: "+ type+" "+text,Toast.LENGTH_SHORT).show();
+        if (type == "coloredOutputTextView") {
+            prepareAndSendColoredTextView(outputTextView, text);
+        } else if (type == "inputTextView") {
+            prepareAndSendTextView(inputTextView, text);
+        } else if (type == "addToRhymeResultVector") {
+            rhymeResults.add(text);
+        } else if (type == "clickableWordsToInputTextView") {
+            guiUtils.setClickableWordsInTextView(inputTextView, text, guiUtils.getDelimiterIndexes(text, ", "));
+            inputTextView.setText(text);
+        } else if (type == "emptyRhymeResultsVector") {
+            rhymeResults.clear();
+        }
+        //if (result.nr == 1) prepareAndSendColoredTextView(outputTextView, result.rhymes);
+    }
+
+
+    /**
+     * for broadcasting to service
+     */
+    PendingIntent pendingIntent;
+
+    /**
+     * COMMUNINICATION FROM ACTIVITY TO SERVICE VIA PENDING INTENT
+     * TODO: vielleicht obsolet, wenn ich nur bound service benutze
+     */
+    protected void setUpPendingIntentForBroadcastToService() {
+        Intent notificationIntent = new Intent(context, RhymesBaseActivity.class);
+        notificationIntent.setAction(Constatics.ACTION.MAIN_ACTION);
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        pendingIntent = PendingIntent.getActivity(context, 0,
+                notificationIntent, 0);
+    }
+
+    // Communication from service to activiy via Localbroadcast:
+    BroadcastReceiver broadcastReceiver;
+
+
+    // Local Service Binding Communication
+    RhymesService rhymesService;
+    boolean rhymesServiceIsBound = false;
+    /**
+     * Local Service Binding Communication: Defines callbacks for service binding, passed to bindService()
+     */
+    private ServiceConnection rhymesServiceBindConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName className,
+                                       IBinder service) {
+            // We've bound to LocalService, cast the IBinder and get LocalService instance
+            RhymesService.LocalBinder binder = (RhymesService.LocalBinder) service;
+            rhymesService = binder.getService();
+            rhymesServiceIsBound = true;
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            rhymesServiceIsBound = false;
+        }
+    };
+
+    //http://stackoverflow.com/questions/4195609/passing-arguments-to-asynctask-and-returning-results
+
+
+// PINCH ZOOM:
+
+    final static float STEP = 200;
+    float pinchMRatio = 1.0f;
+    int pinchMBaseDist;
+    float pinchMBaseRatio;
+    float fontsize = 13;
 
     public boolean onTouchEvent(MotionEvent event) {
         if (event.getPointerCount() == 2) {
             int action = event.getAction();
             int pureaction = action & MotionEvent.ACTION_MASK;
             if (pureaction == MotionEvent.ACTION_POINTER_DOWN) {
-                mBaseDist = getDistance(event);
-                mBaseRatio = mRatio;
+                pinchMBaseDist = getDistance(event);
+                pinchMBaseRatio = pinchMRatio;
             } else {
-                float delta = (getDistance(event) - mBaseDist) / STEP;
+                float delta = (getDistance(event) - pinchMBaseDist) / STEP;
                 float multi = (float) Math.pow(2, delta);
-                mRatio = Math.min(1024.0f, Math.max(0.1f, mBaseRatio * multi));
-                float Textsize = mRatio + 13;
+                pinchMRatio = Math.min(1024.0f, Math.max(0.1f, pinchMBaseRatio * multi));
+                float Textsize = pinchMRatio + 13;
                 if (Textsize > 22) {
                     Textsize = 22;
                 } else if (Textsize < 13) {
@@ -581,7 +680,7 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
                 }
 
                 outputTextView.setTextSize(Textsize);
-                Log.d(LOG_TAG, "mRation = " + mRatio + "\tTextSize = " + Textsize);
+                Log.d(LOG_TAG, "mRation = " + pinchMRatio + "\tTextSize = " + Textsize);
 
             }
         }
@@ -599,392 +698,5 @@ public class RhymesBaseActivity extends Activity implements RecognitionListener,
         return false;
     }
 
-    @Override
-    public void onResume() {
-        Log.d(LOG_TAG, "onResume()");
-        super.onResume();
-
-    }
-
-
-    /**
-     * store settings in file
-     */
-    protected void savePersistentSettings() {
-        editor.putBoolean("enableTextToSpeech", enableTextToSpeech);
-        editor.putInt("autoRandomSpeedinMS", autoRandomSpeedinMS);
-        editor.putBoolean("enableAutoRandom", enableAutoRandom);
-        editor.putBoolean("enableTextToSpeech", enableTextToSpeech);
-        editor.putBoolean("loadHashMapPrefetch", enableHashMapPrefetch);
-        editor.commit();
-
-    }
-
-    /**
-     * restore settings from file
-     */
-    protected void loadPersistentSettings() {
-        //SharedPreferences sharedPreferences = getPreferences(MODE_PRIVATE);
-        autoRandomSpeedinMS = (sharedPreferences.getInt("autoRandomSpeedinMS", autoRandomSpeedinMSDefault));
-        enableAutoRandom = sharedPreferences.getBoolean("enableAutoRandom", false);
-        enableTextToSpeech = sharedPreferences.getBoolean("enableTextToSpeech", enableTextToSpeechDefault);
-        enableHashMapPrefetch = sharedPreferences.getBoolean("loadHashMapPrefetch", enableHashMapPrefetchDefault);
-
-
-    }
-
-
-    @Override
-    protected void onDestroy() {
-        Log.d(LOG_TAG, "onDestroy()");
-        super.onDestroy();
-    }
-
-    @Override
-    protected void onStop() {
-        // Communication from service to activiy via Loacalbroadcast:
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(receiver);
-
-        /*
-        // Local Service Binding Communication
-        if (mBound) {
-            unbindService(mConnection);
-            mBound = false;
-        }
-        */
-        Log.d(LOG_TAG, "onStop()");
-        super.onStop();
-
-        //TODO: was soll das:
-        super.onDestroy();
-    }
-
-    @Override
-    protected void onStart(){
-        super.onStart();
-/*
-        // Local Service Binding Communication
-            Intent intent = new Intent(this, RhymesService.class);
-            bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
-            */
-        // Communication from service to activiy via Loacalbroadcast:
-        LocalBroadcastManager.getInstance(this).registerReceiver((receiver),
-                new IntentFilter(RhymesService.COPA_RESULT)
-        );
-
-    }
-
-    @Override
-    protected void onPause() {
-        Log.i(LOG_TAG, "onPause()");
-        //boolean isBound = false;
-
-        //SERVICE:
-//        unbindService(mConnection);
-
-
-
-/*
-        boolean speechServiceIsBound = getApplicationContext().bindService( new Intent(getApplicationContext(), SpeechRecognizer.class), Context.BIND_AUTO_CREATE );
-        if (speechServiceIsBound)
-            getApplicationContext().unbindService(serviceConnection);
-*/
-        super.onPause();
-        if (speech != null) {
-            //speak.destroy();
-        }
-        Constatics.dataBaseHelper.close();
-
-    }
-
-    @Override
-    public void onBeginningOfSpeech() {
-        Log.i(LOG_TAG, "onBeginningOfSpeech");
-        recvolumeProgrBar.setIndeterminate(false);
-        recvolumeProgrBar.setMax(10);
-    }
-
-    @Override
-    public void onBufferReceived(byte[] buffer) {
-        Log.i(LOG_TAG, "onBufferReceived: " + buffer);
-    }
-
-    @Override
-    public void onEndOfSpeech() {
-        Log.i(LOG_TAG, "onEndOfSpeech");
-        recvolumeProgrBar.setIndeterminate(true);
-        //recvolumeProgrBar.setVisibility(View.INVISIBLE);
-        //voiceRecogButton.setChecked(false);
-    }
-
-    @Override
-    public void onError(int errorCode) {
-        String errorMessage = getErrorText(errorCode);
-        Log.d(LOG_TAG, "FAILED " + errorMessage);
-        outputTextView.setText(errorMessage);
-        //  voiceRecogButton.setChecked(false);
-    }
-
-    @Override
-    public void onEvent(int arg0, Bundle arg1) {
-        Log.i(LOG_TAG, "onEvent");
-    }
-
-    @Override
-    public void onPartialResults(Bundle arg0) {
-        Log.i(LOG_TAG, "onPartialResults");
-    }
-
-    @Override
-    public void onReadyForSpeech(Bundle arg0) {
-        Log.i(LOG_TAG, "onReadyForSpeech");
-        // Toast.makeText(RhymesBaseActivity.this, "called onReadyForSpeech()", Toast.LENGTH_SHORT).show();
-    }
-
-    @Override
-    public void onResults(Bundle results) {
-        Log.i(LOG_TAG, "onResults");
-        ArrayList<String> voiceRecogSpeechMatches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-        voiceRecogSpeechMatches = Constatics.guiUtils.prepareSpeechMatches(voiceRecogSpeechMatches); //TODO:
-        String str = Constatics.guiUtils.concatStringListItems(voiceRecogSpeechMatches, ", ");
-        Constatics.guiUtils.setClickableWordsInTextView(inputTextView, str, Constatics.guiUtils.getDelimiterIndexes(str, ", "));
-        //inputTextView.setText(text);
-
-        emptyRhymeResultsArray();
-        asyncRhymesQuery(voiceRecogSpeechMatches);
-        //System.getProperty("line.separator"));  stringVar.replaceAll("\\\\n", "\\\n"); make sure your \n is in "\n" for it to work.
-        //prepareAndSendTextView(rhymes);
-    }
-//iah\\nYue\\naua\\nAye-Aye\\na\\neh\\nhaha\\naha\\nAr\\nEth\\ndz\\nRäf\\nträf\\nMarseille\\nBouteille\\nNonpareilles\\nIschewsk\\nBischkek\\nquäk\\nerwäg\\nsäg\\nzersäg\\npräg\\nträg\\nschräg\\npfähl\\nmähl\\nvermähl\\nstähl\\nwähl\\n
-
-
-    private void asyncRhymesQuery(ArrayList<String> matches) {
-        for (int i = 0; i < matches.size(); i++) {
-            //String match = matches.get(i); rhymes = runRhymesQuery(match);
-            new AsyncRhymesQueryTask().execute(new AsynchRhymesQueryParamWrapper(i + 1, matches.get(i)));
-            //PARALLEL THREADS:
-            //new AsyncRhymesQueryTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,new AsynchRhymesQueryParamWrapper(i+1,matches.get(i)));
-        }
-    }
-
-
-    private void emptyRhymeResultsArray() {
-        rhymeResults.clear();
-    }
-
-    /**
-     * colorizes text and sends it to output view
-     */
-    public void prepareAndSendTextView(TextView view, String text) {
-        ///Spannable spannable = Constatics.guiUtils.colorizeText(text,"\n"); //TODO:
-        //outputTextView.setText(spannable,TextView.BufferType.SPANNABLE);
-        view.setText(text);
-
-    }
-
-
-    public void prepareAndSendColoredTextView(TextView view, String text) {
-        Spannable spannable = Constatics.guiUtils.colorizeText(text, "\n"); //TODO:
-        view.setText(spannable, TextView.BufferType.SPANNABLE);
-        //view.setText(text);
-
-    }
-
-
-    /**
-     * performs a check and starts the query
-     */
-    private String runRhymesQuery(String word) {
-        if (word == null || word.length() == 0) {
-            Log.v(LOG_TAG, "runRhymesQuery: word == null or == \"\" ");
-            return "";
-        }
-        String rhymes = "";
-        rhymes = constatics.dataBaseHelper.getRhymes(word);
-
-        //  rhymes.replaceAll("\\\\n",System.getProperty("line.separator"));
-        //rhymes=rhymes.replaceAll("\\n","\n");
-        return rhymes;//+\\\n sdfsdfsdf";
-    }
-
-    private void loadTextToSpeech() {
-        textToSpeechEngine = new TextToSpeech(this, this);
-    }
-
-    @Override
-    public void onInit(int status) {
-        //Log.d(&Speech&, &OnInit - Status [&+status+&]&);
-
-        if (status == TextToSpeech.SUCCESS) {
-            //  Log.d(&Speech&, &Success!&);
-            textToSpeechEngine.setLanguage(Locale.GERMAN);
-        }
-    }
-
-    private void speak(String text) {
-        textToSpeechEngine.speak(text, TextToSpeech.QUEUE_FLUSH, null);
-    }
-
-    private void setSpeech() {
-        float pitch = 1.0f;
-        float speed = 1.0f;
-        textToSpeechEngine.setPitch((float) pitch);
-        textToSpeechEngine.setSpeechRate((float) speed);
-        //textToSpeechEngine.speak(editText.getText().toString(), TextToSpeech.QUEUE_FLUSH, null, null);
-    }
-
-
-//http://stackoverflow.com/questions/4195609/passing-arguments-to-asynctask-and-returning-results
-
-
-    /**
-     * Task used to run the rhyme-queries in background
-     */
-    private class AsyncRhymesQueryTask extends AsyncTask<AsynchRhymesQueryParamWrapper, Void, AsynchRhymesQueryParamWrapper> {
-        @Override
-        protected AsynchRhymesQueryParamWrapper doInBackground(AsynchRhymesQueryParamWrapper... query) {
-            Log.d(LOG_TAG, "AsyncRhymesQueryTask doInBackground(): just run rhymes query with Nr.: " + query[0].nr + " and word " + query[0].word);
-            query[0].rhymes = runRhymesQuery(query[0].word);
-            return query[0];
-        }
-        /*
-        @Override
-        protected void onProgressUpdate(Integer... integers){
-
-        }
-        */
-
-        @Override
-        protected void onPostExecute(AsynchRhymesQueryParamWrapper result) {
-            rhymeResults.add(result.rhymes);
-            if (result.nr == 1) prepareAndSendColoredTextView(outputTextView, result.rhymes);
-            Log.d(LOG_TAG, "AsyncRhymesQueryTask onPostExecute():  just added results of query " + result.nr + "( " + result.word + " ) to rhymeResults-Arraylist");
-        }
-    }
-
-
-    private class AsyncRandomRhymesQuery extends AsyncTask<Integer, Void, rhymesapp.WordRhymesPair> {
-        @Override
-        protected rhymesapp.WordRhymesPair doInBackground(Integer... query) {
-            // Log.d(LOG_TAG, "AsyncRhymesQueryTask doInBackground(): just run rhymes query with Nr.: "+query[0].nr + " and word "+query[0].word  );
-            return Constatics.dataBaseHelper.getRandWordRhymesPair();
-
-        }
-        /*
-        @Override
-        protected void onProgressUpdate(Integer... integers){
-
-        }
-        */
-
-        @Override
-        protected void onPostExecute(rhymesapp.WordRhymesPair wordRhymesPair) {
-            super.onPostExecute(wordRhymesPair);
-            //    randomRhymesQuery = wordRhymesPair;
-            showRandomWordRhymesPair(wordRhymesPair);
-            if (enableTextToSpeech) {
-                if (textToSpeechEngine == null) {
-                    loadTextToSpeech();
-                    onInit(TextToSpeech.SUCCESS);
-                }
-                speak(wordRhymesPair.getWord());
-            }
-        }
-        /*
-        @Override
-        protected WordRhymesPair onPostExecute(WordRhymesPair result) {
-            return result;
-            //Log.d(LOG_TAG, "AsyncRhymesQueryTask onPostExecute():  just added results of query "+ result.nr + "( "+result.word +" ) to rhymeResults-Arraylist");
-        }
-        */
-    }
-
-
-    /**
-     * used for peak-meter of audio recogn.
-     *
-     * @param rmsdB
-     */
-    @Override
-    public void onRmsChanged(float rmsdB) {
-        //Log.i(LOG_TAG, "onRmsChanged: " + rmsdB);
-        recvolumeProgrBar.setProgress((int) rmsdB);
-    }
-
-    public static String getErrorText(int errorCode) {
-        String message;
-        switch (errorCode) {
-            case SpeechRecognizer.ERROR_AUDIO:
-                message = "Audio recording error";
-                break;
-            case SpeechRecognizer.ERROR_CLIENT:
-                message = "Client side error";
-                break;
-            case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
-                message = "Insufficient permissions";
-                break;
-            case SpeechRecognizer.ERROR_NETWORK:
-                message = "Network error";
-                break;
-            case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
-                message = "Network timeout";
-                break;
-            case SpeechRecognizer.ERROR_NO_MATCH:
-                message = "No match";
-                break;
-            case SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
-                message = "RecognitionService busy";
-                break;
-            case SpeechRecognizer.ERROR_SERVER:
-                message = "error fromIndex server";
-                break;
-            case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
-                message = "No speak input";
-                break;
-            default:
-                message = "Didn't understand, please try again.";
-                break;
-        }
-        return message;
-    }
-
-// ########## Communication from service
-    private void updateUI( Intent intent )    {
-
-        String type = intent.getStringExtra("TYPE");
-        String text = intent.getStringExtra("TEXT");
-        Toast.makeText(this,"updateUI: "+ type+" "+text,Toast.LENGTH_SHORT).show();
-        if(type =="coloredOutputTextView" ){
-            //prepareAndSendColoredTextView(outputTextView,text);
-        }else if(type=="inputTextView"){
-            prepareAndSendTextView(inputTextView,text);
-        }
-        //if (result.nr == 1) prepareAndSendColoredTextView(outputTextView, result.rhymes);
-    }
-
-
-    // Local Service Binding Communication
-    //RhymesService mService;
-    //boolean mBound = false;
-    /** // Local Service Binding Communication: Defines callbacks for service binding, passed to bindService() */
-    /*
-    private ServiceConnection mConnection = new ServiceConnection() {
-
-        @Override
-        public void onServiceConnected(ComponentName className,
-                                       IBinder service) {
-            // We've bound to LocalService, cast the IBinder and get LocalService instance
-            RhymesService.LocalBinder binder = (RhymesService.LocalBinder) service;
-            mService = binder.getService();
-            mBound = true;
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName arg0) {
-            mBound = false;
-        }
-    };
-
-*/
 
 }
