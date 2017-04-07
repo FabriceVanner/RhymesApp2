@@ -1,7 +1,6 @@
 package rhymesapp;
 
 import android.content.Context;
-import android.os.Bundle;
 
 import static rhymesapp.IOUtils.Filelocation.EXT_STORAGE_USER;
 import static rhymesapp.IOUtils.Filelocation.INTERNAL_DATABASES;
@@ -44,11 +43,12 @@ public class Constatics {
     public static String EXT_STORAGE_USER_PATH_ONE;
 
 
+    public static String dbURL = "http://i.imgur.com/RRUe0Mo.png";
 
 
     /** the difference the external and internal (copied) db may show without recopying the db to internal memory*/
     static final float acceptableFileSizeDifference=0.01f;
-    static boolean copyDBFileIfDifferentSize = true;
+    static boolean copyDBFileIfDifferentSize = false;
 
     /** copy the db from external to internal no matter what*/
     static boolean forceCopyOfDBFile = false;
@@ -113,7 +113,6 @@ public class Constatics {
 
 
     private Constatics(Context context) {
-        dataBaseHelper= DataBaseHelper.getInstance(context);
         IOUtils = IOUtils.getInstance(context);
         guiUtils = GuiUtils.getInstance(context);
         //  this.RA = RA;
@@ -127,14 +126,7 @@ public class Constatics {
         Constatics.enableHashMapPrefetch = enableHashMapPrefetch;
     }
 
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
-        dataBaseHelper.onRestoreInstanceState(savedInstanceState);
-        IOUtils.onRestoreInstanceState(savedInstanceState);
-    }
-    protected void onSaveInstanceState(Bundle savedInstanceState) {
-        dataBaseHelper.onSaveInstanceState(savedInstanceState);
-        //IOUtils.onSaveInstanceState(savedInstanceState);
-    }
+
 //####################################################################################################################
     //SERVICE:
 public interface ACTION {

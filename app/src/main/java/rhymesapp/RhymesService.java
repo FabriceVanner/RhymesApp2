@@ -23,6 +23,7 @@ import com.rhymesapp.R;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Locale;
+import java.util.Vector;
 
 import static rhymesapp.StringsAndStuff.ERR_NOT_OPEN_DB;
 
@@ -35,11 +36,18 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     private static RhymesService rhymesService;
 
     // CLASS OBJECTS
-    private DataBaseHelper dataBaseHelper;
+    public DataBaseHelper dataBaseHelper;
     private GuiUtils guiUtils;
 
     // options
     private boolean enableSpeechRecognition = true;
+
+
+
+    /**
+     * to store the results retourned by the async rhyme-queries (for the speak-recog. results)
+     */
+    public Vector<String> rhymeResults;
 
 
     // LIFECYCLE:
@@ -51,10 +59,10 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         broadcaster = LocalBroadcastManager.getInstance(this);
         rhymesService = this;
         //DataBaseHelper.getInstance(rhymesBaseActivity.getApplicationContext());
-        dataBaseHelper = DataBaseHelper.getInstance(getApplicationContext());
+        dataBaseHelper = DataBaseHelper.getInstance(getApplicationContext(),this);
         guiUtils = GuiUtils.getInstance(getApplicationContext());
         initDataProvider();
-
+        rhymeResults = new Vector<>();
 
         if (this.enableSpeechRecognition) {
             speech = SpeechRecognizer.createSpeechRecognizer(this);
@@ -226,7 +234,6 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         }
     }
 
-
 // QUERIES
 
     private String runRhymesQuery(String word) {
@@ -244,14 +251,14 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
 
     /**
      * looks up every element in the database by creating: AsyncRhymesQueryTasks
-     * @param matches
+     * @param words
      */
-    public void asyncRhymesQuery(ArrayList<String> matches) {
-        for (int i = 0; i < matches.size(); i++) {
-            //String match = matches.get(i); rhymes = runRhymesQuery(match);
-            new AsyncRhymesQueryTask().execute(new AsynchRhymesQueryParamWrapper(i + 1, matches.get(i)));
+    public void asyncRhymesQuery(ArrayList<String> words) {
+        for (int i = 0; i < words.size(); i++) {
+            //String match = words.get(i); rhymes = runRhymesQuery(match);
+            new AsyncRhymesQuery().execute(new AsynchRhymesQueryParamWrapper(i + 1, words.get(i)));
             //PARALLEL THREADS:
-            //new AsyncRhymesQueryTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,new AsynchRhymesQueryParamWrapper(i+1,matches.get(i)));
+            //new AsyncRhymesQuery().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,new AsynchRhymesQueryParamWrapper(i+1,words.get(i)));
         }
     }
 
@@ -260,10 +267,10 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
      * <p>
      * fills rhymeResult-array. when finishhed sets display
      */
-    private class AsyncRhymesQueryTask extends AsyncTask<AsynchRhymesQueryParamWrapper, Void, AsynchRhymesQueryParamWrapper> {
+    private class AsyncRhymesQuery extends AsyncTask<AsynchRhymesQueryParamWrapper, Void, AsynchRhymesQueryParamWrapper> {
         @Override
         protected AsynchRhymesQueryParamWrapper doInBackground(AsynchRhymesQueryParamWrapper... query) {
-            Log.d(LOG_TAG, "AsyncRhymesQueryTask doInBackground(): just run rhymes query with Nr.: " + query[0].nr + " and word " + query[0].word);
+            Log.d(LOG_TAG, "AsyncRhymesQuery doInBackground(): just run rhymes query with Nr.: " + query[0].nr + " and word " + query[0].word);
             query[0].rhymes = runRhymesQuery(query[0].word);
             return query[0];
         }
@@ -274,16 +281,16 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
             if (result.nr == 1) {
                 broadcastCommandToBaseActivity("coloredOutputTextView", result.rhymes);
             }
-            //TODO: crasht wahrscheinlich, weil der broadcast nicht synchronisiert ist:
-            broadcastCommandToBaseActivity("addToRhymeResultVector", result.rhymes);
-            Log.d(LOG_TAG, "AsyncRhymesQueryTask onPostExecute():  just added results of query " + result.nr + "( " + result.word + " ) to rhymeResults-Arraylist");
+            //broadcastCommandToBaseActivity("addToRhymeResultVector", result.rhymes);
+            rhymeResults.add(result.rhymes);
+            Log.d(LOG_TAG, "AsyncRhymesQuery onPostExecute():  just added results of query " + result.nr + "( " + result.word + " ) to rhymeResults-Arraylist");
         }
     }
 
     private class AsyncRandomRhymesQuery extends AsyncTask<Integer, Void, rhymesapp.WordRhymesPair> {
         @Override
         protected rhymesapp.WordRhymesPair doInBackground(Integer... query) {
-            // Log.d(LOG_TAG, "AsyncRhymesQueryTask doInBackground(): just run rhymes query with Nr.: "+query[0].nr + " and word "+query[0].word  );
+            // Log.d(LOG_TAG, "AsyncRhymesQuery doInBackground(): just run rhymes query with Nr.: "+query[0].nr + " and word "+query[0].word  );
             return dataBaseHelper.getRandWordRhymesPair();
 
         }
@@ -311,7 +318,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         @Override
         protected WordRhymesPair onPostExecute(WordRhymesPair result) {
             return result;
-            //Log.d(LOG_TAG, "AsyncRhymesQueryTask onPostExecute():  just added results of query "+ result.nr + "( "+result.word +" ) to rhymeResults-Arraylist");
+            //Log.d(LOG_TAG, "AsyncRhymesQuery onPostExecute():  just added results of query "+ result.nr + "( "+result.word +" ) to rhymeResults-Arraylist");
         }
         */
     }
@@ -323,26 +330,30 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     private void initDataProvider() {
         //myDbHelper = getInstance(this);
         /* TODO: Uncomment*/
-
+        boolean cont = false;
         try {
-            dataBaseHelper.setUpInternalDataBase(Constatics.forceCopyOfDBFile, Constatics.copyDBFileIfDifferentSize);
+           cont= dataBaseHelper.setUpInternalDataBase();
         } catch (IOException ioe) {
-
-            String mess = "";
-            if (ioe.getCause() != null) {
-                mess = ioe.getCause().getMessage();
-            }
-            mess += " at Location " + ioe.getMessage();
-            //    Log.e(LOG_TAG,ioe.getCause().getMessage());
-            Log.e(LOG_TAG, mess);
-            Toast.makeText(this, ERR_NOT_OPEN_DB + mess, Toast.LENGTH_SHORT).show();
-            return;
+            exceptionsToErrormessages(ioe);
         }
-        dataBaseHelper.openDataBase();
+        if(cont)dataBaseHelper.openDataBase();
 
 
         //myDbHelper.getTableNames();
     }
+
+    protected void exceptionsToErrormessages(Exception ioe){
+        String mess = "";
+        if (ioe.getCause() != null) {
+            mess = ioe.getCause().getMessage();
+        }
+        mess += " at Location " + ioe.getMessage();
+        //    Log.e(LOG_TAG,ioe.getCause().getMessage());
+        Log.e(LOG_TAG, mess);
+        Toast.makeText(this, ERR_NOT_OPEN_DB + mess, Toast.LENGTH_SHORT).show();
+        return;
+    }
+
 
 // AUTO RANDOM FUNCTION:
 
@@ -394,7 +405,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     static final public String COPA_RESULT = "com.controlj.copame.backend.COPAService.REQUEST_PROCESSED";
     static final public String COPA_MESSAGE = "com.controlj.copame.backend.COPAService.COPA_MSG";
 
-    private void broadcastCommandToBaseActivity(String type, String text) {
+    public void broadcastCommandToBaseActivity(String type, String text) {
         //Intent textViewToGuiIntent = new Intent(context, RhymesBaseActivity.ServiceTextToGuiHandler.class);
         //PendingIntent textViewToGuiPendingIntent;
 
@@ -595,7 +606,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     public void onResults(Bundle results) {
         Log.i(LOG_TAG, "onResults");
         ArrayList<String> voiceRecogSpeechMatches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-        voiceRecogSpeechMatches = guiUtils.prepareSpeechMatches(voiceRecogSpeechMatches); //TODO:
+        voiceRecogSpeechMatches = guiUtils.prepareSpeechMatches(voiceRecogSpeechMatches);
         String text = guiUtils.concatStringListItems(voiceRecogSpeechMatches, ", ");
 
         //guiUtils.setClickableWordsInTextView(inputTextView, str, guiUtils.getDelimiterIndexes(str, ", "));        //inputTextView.setText(text);
@@ -616,7 +627,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         voiceRecogSpeechMatches.add("Ämter");
         voiceRecogSpeechMatches.add("Ägäis");
         voiceRecogSpeechMatches.add("Äderchens");
-        voiceRecogSpeechMatches = guiUtils.prepareSpeechMatches(voiceRecogSpeechMatches); //TODO:
+        voiceRecogSpeechMatches = guiUtils.prepareSpeechMatches(voiceRecogSpeechMatches);
         String text = guiUtils.concatStringListItems(voiceRecogSpeechMatches, ", ");
 
         //guiUtils.setClickableWordsInTextView(inputTextView, str, guiUtils.getDelimiterIndexes(str, ", "));        //inputTextView.setText(text);

@@ -5,8 +5,8 @@
     <string name="dummy_content">DUMMY\nCONTENT</string>
     <string name="h_on">H On</string>
     <string name="h_off">H Off</string>
-    <string name="ar_off">AR Off</string>
-    <string name="ar_on">AR On</string>
+    <string name="ar_off">R Off</string>
+    <string name="ar_on">R On</string>
     <string name="rand">Rand</string>
     <string name="a_on">A On</string>
     <string name="a_off">A Off</string>

@@ -2,6 +2,7 @@ package rhymesapp;
 
 import android.app.Activity;
 import android.app.PendingIntent;
+import android.app.ProgressDialog;
 import android.content.*;
 import android.graphics.Color;
 import android.os.Bundle;
@@ -21,12 +22,11 @@ import android.widget.*;
 import com.rhymesapp.R;
 
 import java.util.ArrayList;
-import java.util.Vector;
 
 import static rhymesapp.Constatics.*;
 
 
-public class RhymesBaseActivity extends Activity implements View.OnTouchListener { /*implements View.OnKeyListener */
+public class RhymesBaseActivity extends Activity implements View.OnTouchListener , AlertDialogCallback<GuiUtils.DownloadOrCopyDialog>{ /*implements View.OnKeyListener */
 
     private String LOG_TAG = "RA";
     private Context context;
@@ -79,9 +79,8 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
 
     /**
      * to store the results retourned by the async rhyme-queries (for the speak-recog. results)
-     * TODO: sind gar nicht mehr async (zumindest solange die ergebnisse per broadcast(seriell) hierhin übertragen werden)
      */
-    public Vector<String> rhymeResults;
+  //  public Vector<String> rhymeResults;
 
 
     private InputMethodManager im;
@@ -106,7 +105,7 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
         state.putBoolean("enableHashMapPrefetch", enableHashMapPrefetch);
         state.putCharSequence("outputTextViewText", outputTextView.getText());
         state.putCharSequence("inputTextViewText", inputTextView.getText());
-        state.putSerializable("rhymeResultsArray", rhymeResults);
+     //   state.putSerializable("rhymeResultsArray", rhymeResults);
 
         // constatics.onSaveInstanceState(state);
     }
@@ -116,7 +115,7 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
         Log.d(LOG_TAG, "onRestoreInstanceState()");
         super.onRestoreInstanceState(savedInstanceState);
         // no need to check for null of savedInstanceState here
-        rhymeResults = (Vector<String>) savedInstanceState.getSerializable("rhymeResultsArray");
+    //    rhymeResults = (Vector<String>) savedInstanceState.getSerializable("rhymeResultsArray");
         /*
         if(speechRecognitionSwitch!=null) {
             speechRecognitionSwitch.setChecked(savedInstanceState.getBoolean("enableSpeechRecognition", Constatics.enableSpeechRecognitionDefault));
@@ -197,7 +196,7 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
         //   pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         //   wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "My Tag");
 
-        rhymeResults = new Vector<>();
+     //   rhymeResults = new Vector<>();
 
         //this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.activity_main);
@@ -317,8 +316,7 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
                     ArrayList<Integer> delimiterIndexes = guiUtils.getDelimiterIndexes(viewString, ", ");
                     guiUtils.setClickableWordsInTextView(inputTextView, viewString, delimiterIndexes);
 
-                    rhymeResults.clear();
-                    //TODO: SEND COMMANDS TO SERVICE
+                    rhymesService.rhymeResults.clear();
                     rhymesService.asyncRhymesQuery(inputWords);
                     return true;
                 } else {
@@ -582,7 +580,9 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
 
 // ACTIVITY / SERVICE COMMUNICATION
 
-    /*
+    enum serviceToGuiBroadcast{};
+
+    /**
     broadcasted intent from service gets split to commands
      */
     private void updateUI(Intent intent) {
@@ -594,16 +594,22 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
         } else if (type == "inputTextView") {
             prepareAndSendTextView(inputTextView, text);
         } else if (type == "addToRhymeResultVector") {
-            rhymeResults.add(text);
+         //   rhymeResults.add(text);
         } else if (type == "clickableWordsToInputTextView") {
             guiUtils.setClickableWordsInTextView(inputTextView, text, guiUtils.getDelimiterIndexes(text, ", "));
             inputTextView.setText(text);
         } else if (type == "emptyRhymeResultsVector") {
-            rhymeResults.clear();
+     //       rhymeResults.clear();
+        }else if(type =="showDownloadOrCopyDialog"){
+            //guiUtils.showDownloadOrCopyDialog(context, this);
+            GuiUtils.showDownloadOrCopyDialog(context, this);
+        }else if(type=="updateDownCopyProgress"){
+            if (text =="0")progressDialog= GuiUtils.setUpProgressDialog("Copying / Downloading",this);
+            progressDialog.setProgress(Integer.valueOf(text));
         }
         //if (result.nr == 1) prepareAndSendColoredTextView(outputTextView, result.rhymes);
     }
-
+    ProgressDialog progressDialog;
 
     /**
      * for broadcasting to service
@@ -653,6 +659,13 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
     //http://stackoverflow.com/questions/4195609/passing-arguments-to-asynctask-and-returning-results
 
 
+
+    @Override
+    public void alertDialogCallback(GuiUtils.DownloadOrCopyDialog ret) {
+        rhymesService.dataBaseHelper.setUpInternalDataBasept2(ret);
+    }
+
+
 // PINCH ZOOM:
 
     final static float STEP = 200;
@@ -694,9 +707,13 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
     }
 
     public boolean onTouch(View v, MotionEvent event) {
-        // TODO Auto-generated method stub
         return false;
     }
+
+    /**
+     * AlertDialogCallback is necessary for callback dialog if database is missing
+     * since the Dialog is async and without callback code would continue without waiting for an answer
+     */
 
 
 }

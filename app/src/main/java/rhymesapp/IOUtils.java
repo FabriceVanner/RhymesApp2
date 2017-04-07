@@ -108,46 +108,6 @@ public class IOUtils {
         return null;
     }
 
-    /**
-     * gets an input-stream from a specific loacation (ASSETS-folder, raw-ressource, Ext-Storage), performs also a readabilty check if EXT_STORAGE is chosen
-     * @param srcLocation
-     * @param fileName
-     * @return
-     * @throws IOException
-     */
-    public static InputStream getInputStream(Filelocation srcLocation, String fileName) throws IOException {
-        InputStream myInput = null;
-        Log.i(LOG_TAG,"getInputStream(): Looking for File "+fileName +" at "+srcLocation.toString() );
-        try {
-            switch (srcLocation) {
-                case ASSETS:
-                    //Open your local db as the input stream
-                    myInput = myContext.getAssets().open(fileName);
-                    break;
-                case RES_RAW:
-                    myInput = myContext.getResources().openRawResource(myContext.getResources().getIdentifier(fileName.substring(0, fileName.indexOf(".") - 1), "raw", getPackageName()));
-                    break;
-                case EXT_STORAGE_USER:
-                    externalStorageReadable();
-                    if(EXT_STORAGE_USER_PATH_ONE ==null|| EXT_STORAGE_USER_PATH_ONE.equals(""))
-                        EXT_STORAGE_USER_PATH_ONE = getExternalStorageDirectory()+"/"+Environment.DIRECTORY_DOWNLOADS;//TODO: Slash hier richtig?
-                    File file;
-                    try {
-                         file = checkAndGetFile(EXT_STORAGE_USER_PATH_ONE, fileName);
-                    }catch (IOException ioe){
-                        file = checkAndGetFile(EXT_STORAGE_USER_PATH_TWO,fileName);
-                    }
-
-              //      Toast.makeText(myContext, "taking file as input: " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
-                    myInput = (new FileInputStream(file));
-                    break;
-            }
-        } catch (IOException ioe) {
-            Log.e(LOG_TAG,"getInputStream(): " +srcLocation.toString());
-            throw new StorageLocationException(srcLocation.toString(),ioe);
-        }
-        return myInput;
-    }
 
 
 
@@ -156,7 +116,8 @@ public class IOUtils {
 
 
     /**
-     * returns a file-obj. performs readability tests on the directoy first
+     * performs readability tests on the directoy first
+     * returns a file-obj. (might me a newly created file?)
      *  TODO: gerade wird weder lese(input) noch schreib-berechtigung(wäre wichtig für output) der datei selbst geprüft
      * @param folderPath
      * @param fileName
@@ -300,14 +261,53 @@ public class IOUtils {
         ASSETS, RES_RAW, EXT_STORAGE_USER, INTERNAL_PACKAGE, USER_FOLDER_INTERNAL, INTERNAL_DATA, INTERNAL_DATABASES
     }
 
+    /**
+     * gets an input-stream from a specific loacation (ASSETS-folder, raw-ressource, Ext-Storage), performs also a readabilty check if EXT_STORAGE is chosen
+     * @param srcLocation
+     * @param fileName
+     * @return
+     * @throws IOException
+     */
+    public static InputStream getInputStream(Filelocation srcLocation, String fileName) throws IOException {
+        InputStream myInput = null;
+        Log.i(LOG_TAG,"getInputStream(): Looking for File "+fileName +" at "+srcLocation.toString() );
+        try {
+            switch (srcLocation) {
+                case ASSETS:
+                    //Open your local db as the input stream
+                    myInput = myContext.getAssets().open(fileName);
+                    break;
+                case RES_RAW:
+                    myInput = myContext.getResources().openRawResource(myContext.getResources().getIdentifier(fileName.substring(0, fileName.indexOf(".") - 1), "raw", getPackageName()));
+                    break;
+                case EXT_STORAGE_USER:
+                    externalStorageReadable();
+                    if(EXT_STORAGE_USER_PATH_ONE ==null|| EXT_STORAGE_USER_PATH_ONE.equals(""))
+                        EXT_STORAGE_USER_PATH_ONE = getExternalStorageDirectory()+"/"+Environment.DIRECTORY_DOWNLOADS;//TODO: Slash hier richtig?
+                    File file;
+                    try {
+                        file = checkAndGetFile(EXT_STORAGE_USER_PATH_ONE, fileName);
+                    }catch (IOException ioe){
+                        file = checkAndGetFile(EXT_STORAGE_USER_PATH_TWO,fileName);
+                    }
+                    //      Toast.makeText(myContext, "taking file as input: " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
+                    myInput = (new FileInputStream(file));
+                    break;
+            }
+        } catch (IOException ioe) {
+            Log.e(LOG_TAG,"getInputStream(): " +srcLocation.toString());
+            throw new StorageLocationException(srcLocation.toString(),ioe);
+        }
+        return myInput;
+    }
 
 
 
     /**
      * performs a check and returns a file-obj*/
-    public static File getOutputFile(Filelocation dstLocation, String fileName) throws IOException {
+    public static File getDstFileObj(Filelocation dstLocation, String fileName) throws IOException {
         File file = null;
-        Log.i(LOG_TAG,"getOutputFile(): Looking for File "+fileName +" at "+dstLocation.toString() );
+        Log.i(LOG_TAG,"getDstFileObj(): Looking for File "+fileName +" at "+dstLocation.toString() );
         switch (dstLocation) {
             case INTERNAL_PACKAGE:
                 file = checkAndGetFile(getPackageName(), fileName);
@@ -323,7 +323,7 @@ public class IOUtils {
                 file =  (myContext.getDatabasePath(fileName));
                 break;
         }
-     //   Toast.makeText(myContext, "getOutputFile() Using: " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
+     //   Toast.makeText(myContext, "getDstFileObj() Using: " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
         return file;
 
     }

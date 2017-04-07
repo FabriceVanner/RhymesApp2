@@ -1,6 +1,9 @@
 package rhymesapp;
 
+import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.graphics.Color;
 import android.text.Spannable;
 import android.text.SpannableString;
@@ -10,11 +13,14 @@ import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Random;
+
+import static rhymesapp.GuiUtils.DownloadOrCopyDialog.*;
 
 /**
  * Created by Fabrice Vanner on 05.10.2016.
@@ -135,7 +141,6 @@ public class GuiUtils {
 
         int nrOfWords = indexes.size();
 
-
         for (int i = 0; i <= nrOfWords; i++) {
             final int j = i;
             //final String word = wordsStr.substring();
@@ -145,14 +150,14 @@ public class GuiUtils {
                     String mess = "Clicked " + " ?? " + "View: " + textView.getId();
                     // Toast.makeText(RhymesBaseActivity.this, mess, Toast.LENGTH_SHORT).show();
                     Log.v(LOG_TAG, mess);
-                    if (!(rhymesBaseActivity.rhymeResults.size() >= j)) {
+                    if (!(rhymesBaseActivity.rhymesService.rhymeResults.size() >= j)) {
                         mess = "setClickableWordsInTextView: Somehow the rhymeResult Array/Vector does not contain an entry with index of j = " + j;
                         Toast.makeText(rhymesBaseActivity, mess, Toast.LENGTH_SHORT).show();
                         Log.e(LOG_TAG, mess);
                         return;
                     }
                     //rhymesBaseActivity.prepareAndSendTextView(rhymesBaseActivity.getOutputTextView(), rhymesBaseActivity.rhymeResults.get(j));
-                    rhymesBaseActivity.prepareAndSendColoredTextView(rhymesBaseActivity.getOutputTextView(),rhymesBaseActivity.rhymeResults.get(j));
+                    rhymesBaseActivity.prepareAndSendColoredTextView(rhymesBaseActivity.getOutputTextView(),rhymesBaseActivity.rhymesService.rhymeResults.get(j));
                 }
             };
             // test comment: make internal method
@@ -211,4 +216,43 @@ public class GuiUtils {
         return indexes;
     }
 
+
+
+    public static ProgressDialog setUpProgressDialog(String message, Context context){
+        ProgressDialog progress=new ProgressDialog(context);
+        progress.setMessage(message);
+        progress.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+        progress.setIndeterminate(true);
+        progress.setProgress(0);
+        progress.show();
+        return progress;
+    }
+
+    enum DownloadOrCopyDialog {DOWNLOAD, COPY, CANCEL, UNSET}
+
+    public static void showDownloadOrCopyDialog(Context context, final AlertDialogCallback<GuiUtils.DownloadOrCopyDialog> callback) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setMessage("Theres no DB present.\nWould you like to download from Web\n or copy the db from SD-Card?");
+        builder.setPositiveButton("Download", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {callback.alertDialogCallback(DOWNLOAD);
+            }
+        });
+        builder.setNegativeButton("Copy", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                callback.alertDialogCallback(COPY);
+            }
+        });
+        builder.setNeutralButton("CANCEL", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {callback.alertDialogCallback(CANCEL);
+            }
+        });
+        AlertDialog alert = builder.create();
+        //TODO: Unable to create service rhymesapp.RhymesService: android.view.WindowManager$BadTokenException: Unable to add window android.view.ViewRootImpl$W@eb93714 -- permission denied for this window type at android.app.ActivityThread.handleCreateService(ActivityThread.java:2921)
+        alert.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);//TYPE_SYSTEM_ALERT);
+        alert.show();
+        //dialog.dismiss();
+    }
 }
