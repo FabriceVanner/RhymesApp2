@@ -1,13 +1,13 @@
 package rhymesapp;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.app.ProgressDialog;
 import android.content.*;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.os.PowerManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.text.InputType;
 import android.text.Spannable;
@@ -24,9 +24,11 @@ import com.rhymesapp.R;
 import java.util.ArrayList;
 
 import static rhymesapp.Constatics.*;
+import static rhymesapp.RhymesBaseActivity.DownloadOrCopyDialog.CANCEL;
+import static rhymesapp.RhymesBaseActivity.DownloadOrCopyDialog.DOWNLOAD;
 
 
-public class RhymesBaseActivity extends Activity implements View.OnTouchListener , AlertDialogCallback<GuiUtils.DownloadOrCopyDialog>{ /*implements View.OnKeyListener */
+public class RhymesBaseActivity extends Activity implements  AlertDialogCallback<RhymesBaseActivity.DownloadOrCopyDialog>{ /*implements View.OnKeyListener */
 
     private String LOG_TAG = "RA";
     private Context context;
@@ -72,10 +74,6 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
     private SharedPreferences.Editor editor;
 
 
-    //ACITVITY WAKE LOCK
-    PowerManager pm;
-    PowerManager.WakeLock wl;
-    protected boolean enableWakeLock = false;
 
     /**
      * to store the results retourned by the async rhyme-queries (for the speak-recog. results)
@@ -84,10 +82,6 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
 
 
     private InputMethodManager im;
-
-
-
-
 
 // SETTINGS AND OPTIONS STORING
 
@@ -101,10 +95,12 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
         state.putBoolean("enableAutoRandom", enableAutoRandom);
         state.putBoolean("enableSpeechRecognition", enableSpeechRecognition);
         //state.putBoolean("enableTextToSpeech", enableTextToSpeech);
-        state.putBoolean("enableWakeLock", enableWakeLock);
+    //    state.putBoolean("enableWakeLock", enableWakeLock);
         state.putBoolean("enableHashMapPrefetch", enableHashMapPrefetch);
         state.putCharSequence("outputTextViewText", outputTextView.getText());
         state.putCharSequence("inputTextViewText", inputTextView.getText());
+
+     // TODO: ist das sinnvoll das zu speichern?:  state.putBoolean("rhymesServiceIsBound",rhymesServiceIsBound);
      //   state.putSerializable("rhymeResultsArray", rhymeResults);
 
         // constatics.onSaveInstanceState(state);
@@ -131,9 +127,9 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
         outputTextView.setText(savedInstanceState.getCharSequence("outputTextViewText"));
         inputTextView.setText(savedInstanceState.getCharSequence("inputTextViewText"));
         enableAutoRandom = savedInstanceState.getBoolean("enableAutoRandom", false);
-        enableWakeLock = savedInstanceState.getBoolean("enableWakeLock", enableWakeLockDefault);
-        //  enableTextToSpeech = (savedInstanceState.getBoolean("enableTextToSpeech", enableHashMapPrefetchDefault));
-
+        //enableWakeLock = savedInstanceState.getBoolean("enableWakeLock", enableWakeLockDefault);
+        // enableTextToSpeech = (savedInstanceState.getBoolean("enableTextToSpeech", enableHashMapPrefetchDefault));
+    //    rhymesServiceIsBound=savedInstanceState.getBoolean("rhymesServiceIsBound",false);
 
         // Log.v(TAG, "Inside of onRestoreInstanceState");
     }
@@ -182,7 +178,7 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
             enableSpeechRecognition = enableSpeechRecognitionDefault;
             enableHashMapPrefetch = enableHashMapPrefetchDefault;
             rhymesService.autoRandomSpeedinMS = autoRandomSpeedinMSDefault;
-            enableWakeLock = enableWakeLockDefault;
+         //   enableWakeLock = enableWakeLockDefault;
         }
         //TODO http://blog.cindypotvin.com/saving-preferences-in-your-android-application/
         /** save settings in file*/
@@ -228,7 +224,7 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
         ;
         textToSpeechToggle = (ToggleButton) findViewById(R.id.voiceOutToggle);
         wakeLockToggle = (ToggleButton) findViewById(R.id.wakeLockToggle);
-        serviceToggle = (ToggleButton) findViewById(R.id.serviceToggle);
+       // serviceToggle = (ToggleButton) findViewById(R.id.serviceToggle);
 
         keysButton = (Button) findViewById(R.id.keys);
         im = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
@@ -445,20 +441,12 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
 
 
         });
-
-        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+/*
+S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 // SERVICE
-                            /*
-                    // use this to start and trigger a service
-                    Intent intent= new Intent(this, RhymesService.class);
-            // potentially add data to the intent
-                    //i.putExtra("KEY1", "Value to be used by the service");
 
-                    bindService(intent, rhymesServiceBindConnection,Context.BIND_AUTO_CREATE);
-                    */
-                //context.startService(i);
                 // #########################  Use Service as with intent
                 Intent serviceIntent = new Intent(RhymesBaseActivity.this, RhymesService.class);
                 if (isChecked) {
@@ -478,14 +466,33 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
             }
 
         });
-
+*/
         // Communication from service to activiy via Loacalbroadcast:
         broadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
+
                 updateUI(intent);
             }
         };
+        /* TODO: Brauche ich das noch für einen bound service?
+        Intent serviceIntent = new Intent(RhymesBaseActivity.this, RhymesService.class);
+            //if (!RhymesService.IS_SERVICE_RUNNING) {
+                serviceIntent.setAction(Constatics.ACTION.STARTFOREGROUND_ACTION);
+                RhymesService.IS_SERVICE_RUNNING = true;
+                startService(serviceIntent);
+
+         //   }
+*/
+    }
+
+    @Override
+    public void onRestart() {
+        Log.d(LOG_TAG, "onRestart()");
+        // Local Service Binding Communication
+
+        super.onRestart();
+
     }
 
     @Override
@@ -499,47 +506,49 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
     protected void onDestroy() {
         Log.d(LOG_TAG, "onDestroy()");
         super.onDestroy();
+        //TODO: nötig und richtig?
+        //stop service as activity beeing destroyed
+        /*
+        isFinishing – returns true if the activity is finishing. It’s not called when the activity is destroyed because of an orientation change. It is called when we dismiss the activity. We want to stop the Service when the activity is destroyed and won’t be brought back to life
+         */
+        if(isFinishing()){
+            Intent intentStopService = new Intent(this, RhymesService.class);
+            stopService(intentStopService);
+        }
     }
 
     @Override
     protected void onStop() {
         // Communication from service to activiy via Loacalbroadcast:
         LocalBroadcastManager.getInstance(this).unregisterReceiver(broadcastReceiver);
-
-
         // Local Service Binding Communication
         if (rhymesServiceIsBound) {
             unbindService(rhymesServiceBindConnection);
             rhymesServiceIsBound = false;
         }
-
         Log.d(LOG_TAG, "onStop()");
         super.onStop();
     }
 
     @Override
     protected void onStart() {
-        super.onStart();
 
+        //You should usually not bind in onResume() and unbind in onPause()
         // Local Service Binding Communication
         Intent intent = new Intent(this, RhymesService.class);
-        bindService(intent, rhymesServiceBindConnection, Context.BIND_AUTO_CREATE);
-
+        //TODO: rhymesServiceIsBound=(vom rückgabewert von bindservice setzen lassen?
+                bindService(intent, rhymesServiceBindConnection, Context.BIND_AUTO_CREATE);
 
         // Communication from service to activiy via Loacalbroadcast:
         LocalBroadcastManager.getInstance(this).registerReceiver((broadcastReceiver),
                 new IntentFilter(RhymesService.COPA_RESULT)
         );
-
+        super.onStart();
     }
 
     @Override
     protected void onPause() {
         Log.i(LOG_TAG, "onPause()");
-
-        //SERVICE:
-        unbindService(rhymesServiceBindConnection);
-        rhymesServiceIsBound = false;
         super.onPause();
 
     }
@@ -564,23 +573,9 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
         return outputTextView;
     }
 
-    public void setOutputTextView(TextView outputTextView) {
-        this.outputTextView = outputTextView;
-    }
-
-    public EditText getInputTextView() {
-        return inputTextView;
-    }
-
-    public void setInputTextView(EditText inputTextView) {
-        this.inputTextView = inputTextView;
-    }
-
-
-
 // ACTIVITY / SERVICE COMMUNICATION
 
-    enum serviceToGuiBroadcast{};
+    enum serviceToGuiBroadcast{outputTextView,coloredOutputTextView,inputTextView,addToRhymeResultVector,clickableWordsToInputTextView,emptyRhymeResultsVector,showDownloadOrCopyDialog,updateDownCopyProgress,showDownloadDialog};
 
     /**
     broadcasted intent from service gets split to commands
@@ -589,11 +584,13 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
         String type = intent.getStringExtra("TYPE");
         String text = intent.getStringExtra("TEXT");
         //Toast.makeText(this,"updateUI: "+ type+" "+text,Toast.LENGTH_SHORT).show();
-        if (type == "coloredOutputTextView") {
-            prepareAndSendColoredTextView(outputTextView, text);
-        } else if (type == "inputTextView") {
-            prepareAndSendTextView(inputTextView, text);
-        } else if (type == "addToRhymeResultVector") {
+        String action = intent.getStringExtra("action");
+
+        if (type == "coloredOutputTextView") prepareAndSendColoredTextView(outputTextView, text);
+        else if (type=="toggleAutoRandomSwitchSetCheckedVisually")autoRandomToggle.setChecked(true);
+        else if (type == "inputTextView")prepareAndSendTextView(inputTextView, text);
+        else if(type=="togglePlay")Toast.makeText(this,"RhymesBaseActiviy: received toggle Play",Toast.LENGTH_SHORT);
+        else if (type == "addToRhymeResultVector") {
          //   rhymeResults.add(text);
         } else if (type == "clickableWordsToInputTextView") {
             guiUtils.setClickableWordsInTextView(inputTextView, text, guiUtils.getDelimiterIndexes(text, ", "));
@@ -602,10 +599,13 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
      //       rhymeResults.clear();
         }else if(type =="showDownloadOrCopyDialog"){
             //guiUtils.showDownloadOrCopyDialog(context, this);
-            GuiUtils.showDownloadOrCopyDialog(context, this);
+            showDownloadOrCopyDialog(context,this);
         }else if(type=="updateDownCopyProgress"){
-            if (text =="0")progressDialog= GuiUtils.setUpProgressDialog("Copying / Downloading",this);
             progressDialog.setProgress(Integer.valueOf(text));
+        }else if(type=="showDownloadDialog()"){
+            showDownloadOrCopyDialog(context,this);
+        }else if(type=="outputTextView"){
+            prepareAndSendTextView(outputTextView,text);
         }
         //if (result.nr == 1) prepareAndSendColoredTextView(outputTextView, result.rhymes);
     }
@@ -652,6 +652,7 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
 
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
+            rhymesService= null;
             rhymesServiceIsBound = false;
         }
     };
@@ -660,60 +661,65 @@ public class RhymesBaseActivity extends Activity implements View.OnTouchListener
 
 
 
-    @Override
-    public void alertDialogCallback(GuiUtils.DownloadOrCopyDialog ret) {
-        rhymesService.dataBaseHelper.setUpInternalDataBasept2(ret);
-    }
 
 
 // PINCH ZOOM:
 
-    final static float STEP = 200;
-    float pinchMRatio = 1.0f;
-    int pinchMBaseDist;
-    float pinchMBaseRatio;
-    float fontsize = 13;
 
-    public boolean onTouchEvent(MotionEvent event) {
-        if (event.getPointerCount() == 2) {
-            int action = event.getAction();
-            int pureaction = action & MotionEvent.ACTION_MASK;
-            if (pureaction == MotionEvent.ACTION_POINTER_DOWN) {
-                pinchMBaseDist = getDistance(event);
-                pinchMBaseRatio = pinchMRatio;
-            } else {
-                float delta = (getDistance(event) - pinchMBaseDist) / STEP;
-                float multi = (float) Math.pow(2, delta);
-                pinchMRatio = Math.min(1024.0f, Math.max(0.1f, pinchMBaseRatio * multi));
-                float Textsize = pinchMRatio + 13;
-                if (Textsize > 22) {
-                    Textsize = 22;
-                } else if (Textsize < 13) {
-                    Textsize = 13;
-                }
-
-                outputTextView.setTextSize(Textsize);
-                Log.d(LOG_TAG, "mRation = " + pinchMRatio + "\tTextSize = " + Textsize);
-
-            }
+// DIALOGS:
+    @Override
+    public void alertDialogCallback(DownloadOrCopyDialog ret) {
+        // ist nötig da der alert nebenläufig gestartet wird, also die anwendung nicht stoppt...
+        //   ProgressDialog progressDialog;
+        switch (ret) {
+            case CANCEL:
+                return;
+            case DOWNLOAD:
+                Toast.makeText(context, "Downloading... ", Toast.LENGTH_LONG).show();
+                progressDialog=  GuiUtils.setUpProgressDialog("Downloading DB",this);
+                rhymesService.dataBaseHelper.downloadDb(dbURL, "", "test.png");
+                return;
+            case COPY:
+                progressDialog=  GuiUtils.setUpProgressDialog("Copying DB",this);
+                //   rhymesService.dataBaseHelper.copyDBifNecessary(true,progressDialog);
+                rhymesService.dataBaseHelper.openDataBase();
+                return;
         }
-        return true;
     }
 
-    int getDistance(MotionEvent event) {
-        int dx = (int) (event.getX(0) - event.getX(1));
-        int dy = (int) (event.getY(0) - event.getY(1));
-        return (int) (Math.sqrt(dx * dx + dy * dy));
-    }
-
-    public boolean onTouch(View v, MotionEvent event) {
-        return false;
-    }
 
     /**
      * AlertDialogCallback is necessary for callback dialog if database is missing
      * since the Dialog is async and without callback code would continue without waiting for an answer
      */
+    enum DownloadOrCopyDialog {DOWNLOAD, COPY, CANCEL, UNSET}
 
+    public  void showDownloadOrCopyDialog(Context context, final AlertDialogCallback<DownloadOrCopyDialog> callback) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(RhymesBaseActivity.this);
+        builder.setMessage("Theres no DB present on internal and external Storage. \nWould you like to download from Web?");
+        builder.setPositiveButton("Download", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {callback.alertDialogCallback(DOWNLOAD);
+            }
+        });
+   /*     builder.setNegativeButton("Copy", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                callback.alertDialogCallback(COPY);
+            }
+        });*/
+        builder.setNeutralButton("CANCEL", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {callback.alertDialogCallback(CANCEL);
+            }
+        });
+        builder.setCancelable(false);
+        AlertDialog alert = builder.create();
+        //TODO: Unable to create service rhymesapp.RhymesService: android.view.WindowManager$BadTokenException: Unable to add window android.view.ViewRootImpl$W@eb93714 -- permission denied for this window type at android.app.ActivityThread.handleCreateService(ActivityThread.java:2921)
+        alert.getWindow().setType(WindowManager.LayoutParams.TYPE_APPLICATION);//TYPE_SYSTEM_ALERT);
+        alert.setCanceledOnTouchOutside(false);
+        alert.show();
+        //dialog.dismiss();
+    }
 
 }

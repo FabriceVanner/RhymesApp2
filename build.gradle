@@ -13,6 +13,21 @@ buildscript {
 }
 
 allprojects {
+
+    apply {
+      //  plugin 'java'
+        plugin 'idea'
+        //  plugin 'eclipse'
+    }
+
+    idea {
+        module {
+            downloadJavadoc = true
+        }
+    }
+
+
+
     repositories {
         jcenter()
     }

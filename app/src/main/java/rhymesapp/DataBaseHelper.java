@@ -1,7 +1,10 @@
 package rhymesapp;
 
+import android.Manifest;
+import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.DatabaseUtils;
 import android.database.SQLException;
@@ -10,8 +13,10 @@ import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 import android.widget.Toast;
+import com.intentfilter.androidpermissions.PermissionManager;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -20,8 +25,10 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Random;
 
+import static java.util.Collections.singleton;
 import static rhymesapp.Constatics.IOUtils;
 import static rhymesapp.Constatics.*;
+import static rhymesapp.RhymesService.context;
 import static rhymesapp.StringsAndStuff.*;
 
 //import static main.java.rhymesApp.IOUtils.*;
@@ -116,8 +123,13 @@ public class DataBaseHelper extends SQLiteOpenHelper {
         return dbReadyLoaded;
     }
 
-    public static void setDbReadyLoaded(boolean dbReadyLoaded) {
+    public  void setDbReadyLoaded(boolean dbReadyLoaded) {
         DataBaseHelper.dbReadyLoaded = dbReadyLoaded;
+        if(dbReadyLoaded) {
+            rhymeService.broadcastCommandToBaseActivity("outputTextView", "DB ready");
+        }else{
+
+        }
     }
 
 
@@ -259,91 +271,90 @@ public class DataBaseHelper extends SQLiteOpenHelper {
     }
 
 
-
     /**
      * Creates a empty database on the system and rewrites it with your own database.
      */
-    public boolean setUpInternalDataBase() throws IOException {
-        if (dbFileisLoadable) return true;
+    public void setUpInternalDataBase() throws IOException {
+        if (dbFileisLoadable) return ;
 
+        //: TODO open failed: EACCES (Permission denied) at Location /data/user/0/com.rhymesapp/databases/rhymes.db: open failed: EACCES (Permission denied)
+        /*
+        getUserPermissions();
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        */
         /**TODO: er ruft in getSetDBFile() wie auch in filesAreEqualSize() 2 mal hintereinander die getDstFileObj() methode auf*/
-        if (INTERNAL_DB_FILE == null) {
-            INTERNAL_DB_FILE = (ioUtils.getDstFileObj(dbDstLocation, getDbFilename()));
+        try {
+            if (INTERNAL_DB_FILE == null) {
+                INTERNAL_DB_FILE = (ioUtils.getDstFileObj(dbDstLocation, getDbFilename()));
+            }
+        } catch (IOException e) {
+            dataBaseHelperSingleton.rhymeService.exceptionsToErrormessages(e);
         }
-        //check if file to be copied is db-file
-        if (!INTERNAL_DB_FILE.exists() || !isDataBase(INTERNAL_DB_FILE)) {
-            Log.v(LOG_TAG, INTERNAL_DB_NOT_EXISTS + dbDstLocation.toString());
-            //TODO: ENABLE ME: rhymeService.broadcastCommandToBaseActivity("showDownloadOrCopyDialog", "");
-            //TODO: DISABLE: ...
-            Toast.makeText(myContext, "Copying... ", Toast.LENGTH_LONG).show();
-            copyDb(null);
-            return true;
-        }
-        ;
-        setUpInternalDataBasept3();
-        return true;
-    }
 
-    public void setUpInternalDataBasept3() {
+      //  ;
+        boolean needToCopy=false;
+        //check if file at destination is db-file
+        if (!isDataBase(INTERNAL_DB_FILE)) {
+            Log.v(LOG_TAG, INTERNAL_DB_NOT_EXISTS + dbDstLocation.toString());
+            needToCopy=true;
+        }
+
+
+
+        boolean wouldLikeToCopy = false;
+
         try {
             if (EXTERNAL_DB_FILE_INPUTSTREAM == null)
                 EXTERNAL_DB_FILE_INPUTSTREAM = (ioUtils.getInputStream(dbSrcLocation, getDbFilename()));
-
-            if (Constatics.forceCopyOfDBFile) {
-                //ProgressDialog progressDialog= setUpProgressDialog("Copying DB");
-                Toast.makeText(myContext, "Copying... ", Toast.LENGTH_LONG).show();
-                copyDb(null);
-                return;
-            }
-            if (Constatics.copyDBFileIfDifferentSize && !ioUtils.filesAreEqualSize(EXTERNAL_DB_FILE_INPUTSTREAM, INTERNAL_DB_FILE, Constatics.acceptableFileSizeDifference)) {
-                // ProgressDialog progressDialog= setUpProgressDialog("Copying DB");
-                Toast.makeText(myContext, "Copying... ", Toast.LENGTH_LONG).show();
-                copyDb(null);
-                return;
-            }
         } catch (IOException e) {
             dataBaseHelperSingleton.rhymeService.exceptionsToErrormessages(e);
             e.printStackTrace();
         }
-    }
-
-//TODO: kann nach Activity verschoben werden
-    public void setUpInternalDataBasept2(GuiUtils.DownloadOrCopyDialog downloadOrCopyDialog) {
-        ProgressDialog progressDialog;
         try {
-            switch (downloadOrCopyDialog) {
-                case CANCEL:
-                    return;
-                case DOWNLOAD:
-                    Toast.makeText(myContext, "Downloading... ", Toast.LENGTH_LONG).show();
-                    //progressDialog = setUpProgressDialog("Downloading DB");
-                    rhymeService.broadcastCommandToBaseActivity("updateDownCopyProgress", "0");
-                    WebIO.downloadFile(dbURL, "", "test.png", this);
-                    return;
-                case COPY:
-                    Toast.makeText(myContext, "Copying... ", Toast.LENGTH_LONG).show();
-                    ///  progressDialog= setUpProgressDialog("Copying DB");
-                    copyDb(null);
-                    return;
+            if ((Constatics.forceCopyOfDBFile) || (Constatics.copyDBFileIfDifferentSize && !ioUtils.filesAreEqualSize(EXTERNAL_DB_FILE_INPUTSTREAM, INTERNAL_DB_FILE, Constatics.acceptableFileSizeDifference))) {
+                wouldLikeToCopy = true;
             }
         } catch (IOException e) {
             dataBaseHelperSingleton.rhymeService.exceptionsToErrormessages(e);
             e.printStackTrace();
         }
-        setUpInternalDataBasept3();
-        return;
+
+        if (!wouldLikeToCopy && !needToCopy) return ;
+        if (wouldLikeToCopy && EXTERNAL_DB_FILE_INPUTSTREAM == null) return ;
+        if (needToCopy && EXTERNAL_DB_FILE_INPUTSTREAM == null){
+            dataBaseHelperSingleton.rhymeService.exceptionsToErrormessages(new Exception("Need To Copy but got nothing to copy"));
+            throw new IOException("Need To Copy but got nothing to copy");
+        }
+        copyDb(null);
+        // dataBaseHelperSingleton.rhymeService.exceptionsToErrormessages(e);
+        return ;
     }
+
+
+
+
+    public void downloadDb(String urlPath, String fileDirName, String fileName){
+        /*TODO: ASYNC TASK EINBAUEN*/
+        WebIO.downloadFile(urlPath,fileDirName,fileName,this.rhymeService);
+    }
+
 
 
     public void copyDb(ProgressDialog progressDialog) throws IOException {
-        this.getReadableDatabase();//TODO: what for?
+        //this.getReadableDatabase();//TODO: what for?
+        Toast.makeText(myContext, "Copying... ", Toast.LENGTH_LONG).show();
         ioUtils.copyStreams(EXTERNAL_DB_FILE_INPUTSTREAM, new FileOutputStream(INTERNAL_DB_FILE));
+        //progressDialog.dismiss();
     }
 
 
     /**
      * Check if the database already exist to avoid re-copying the file eachEntry time you open the application.
-     *
+     * TODO: check funktioniert nicht
      * @return true if it exists, false if it doesn't
      */
     /**
@@ -597,5 +608,48 @@ public class DataBaseHelper extends SQLiteOpenHelper {
         return rhymes;
     }
 
+
+    PermissionManager permissionManager = PermissionManager.getInstance(context);
+    private void getUserPermissions(){
+        permissionManager.checkPermissions(singleton(Manifest.permission.WRITE_EXTERNAL_STORAGE), new PermissionManager.PermissionRequestListener() {
+            @Override
+            public void onPermissionGranted() {
+                Toast.makeText(context, "Permissions Granted", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onPermissionDenied() {
+                Toast.makeText(context, "Permissions Denied", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    // Storage Permissions
+    private static final int REQUEST_EXTERNAL_STORAGE = 1;
+    private static String[] PERMISSIONS_STORAGE = {
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+    };
+
+    /**
+     * Checks if the app has permission to write to device storage
+     * <p>
+     * If the app does not has permission then the user will be prompted to grant permissions
+     *
+     * @param activity
+     */
+    public static void verifyStoragePermissions(Activity activity) {
+        // Check if we have write permission
+        int permission = ActivityCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            // We don't have permission so prompt the user
+            ActivityCompat.requestPermissions(
+                    activity,
+                    PERMISSIONS_STORAGE,
+                    REQUEST_EXTERNAL_STORAGE
+            );
+        }
+    }
 
 }

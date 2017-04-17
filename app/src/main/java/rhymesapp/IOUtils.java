@@ -13,11 +13,9 @@ import android.widget.Toast;
 import java.io.*;
 import java.util.HashMap;
 
-import static rhymesapp.Constatics.EXT_STORAGE_USER_PATH_ONE;
-import static rhymesapp.Constatics.EXT_STORAGE_USER_PATH_TWO;
-import static rhymesapp.Constatics.INT_STORAGE_USER_PATH;
-import static rhymesapp.StringsAndStuff.ERR_ON_COPY_STREAMS;
 import static android.os.Environment.getExternalStorageDirectory;
+import static rhymesapp.Constatics.*;
+import static rhymesapp.StringsAndStuff.ERR_ON_COPY_STREAMS;
 
 //import static main.java.rhymesApp.DataBaseHelper.getSetDBFile;
 
@@ -304,7 +302,20 @@ public class IOUtils {
 
 
     /**
-     * performs a check and returns a file-obj*/
+     *
+     *
+     *
+     * */
+
+    /**
+     * performs a check and returns a file-obj for enums: INTERNAL PACKAGE, USER FOLDER INTERNAL, INTERNAL DATA, INTERNAL DATABASES
+     *
+     *
+     * @param dstLocation
+     * @param fileName
+     * @return
+     * @throws IOException
+     */
     public static File getDstFileObj(Filelocation dstLocation, String fileName) throws IOException {
         File file = null;
         Log.i(LOG_TAG,"getDstFileObj(): Looking for File "+fileName +" at "+dstLocation.toString() );
@@ -313,7 +324,7 @@ public class IOUtils {
                 file = checkAndGetFile(getPackageName(), fileName);
                 break;
             case USER_FOLDER_INTERNAL:
-                if(INT_STORAGE_USER_PATH.equals(""))INT_STORAGE_USER_PATH=myContext.getFilesDir().getAbsolutePath()+ Environment.DIRECTORY_DOWNLOADS;
+                if(INT_STORAGE_USER_PATH==null||INT_STORAGE_USER_PATH.equals(""))INT_STORAGE_USER_PATH=myContext.getFilesDir().getAbsolutePath()+ Environment.DIRECTORY_DOWNLOADS;
                 file = checkAndGetFile(INT_STORAGE_USER_PATH, fileName);
                 break;
             case INTERNAL_DATA:
@@ -321,6 +332,7 @@ public class IOUtils {
                 break;
             case INTERNAL_DATABASES:
                 file =  (myContext.getDatabasePath(fileName));
+                checkAndGetFile(file.getParent(),fileName);
                 break;
         }
      //   Toast.makeText(myContext, "getDstFileObj() Using: " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();

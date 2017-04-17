@@ -34,9 +34,10 @@
             android:layout_weight="0.85">
     <!---->
     <HorizontalScrollView
-            android:layout_width="fill_parent"
+            android:layout_width="match_parent"
             android:id="@+id/horizontalScrollView"
-            android:layout_height="fill_parent">
+            android:layout_height="fill_parent" android:paddingBottom="0dp" android:padding="0dp"
+            android:layout_margin="0dp">
         <TextView
                 android:id="@+id/outputTextView"
 
@@ -51,7 +52,7 @@
         </TextView>
     </HorizontalScrollView>
 </ScrollView>
-
+<!--
     <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
@@ -76,9 +77,10 @@
                 android:text="ToggleButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:id="@+id/serviceToggle" android:layout_weight="1"
-                android:textOff="Se OFF" android:textOn="Se On"
+                android:textOff="@string/se_off" android:textOn="@string/se_on"
                 style="@android:style/Widget.DeviceDefault.Button.Toggle"/>
     </LinearLayout>
+    -->
     <LinearLayout
             android:orientation="horizontal"
             android:layout_width="wrap_content"
