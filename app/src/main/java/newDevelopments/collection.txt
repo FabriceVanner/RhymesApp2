@@ -1,0 +1,51 @@
+
+
+  //Pinch-Zoom:,  in Class decl: implements: View.OnTouchListener ,
+    final static float STEP = 200;
+    float pinchMRatio = 1.0f;
+    int pinchMBaseDist;
+    float pinchMBaseRatio;
+    float fontsize = 13;
+
+    public boolean onTouchEvent(MotionEvent event) {
+        if (event.getPointerCount() == 2) {
+            int action = event.getAction();
+            int pureaction = action & MotionEvent.ACTION_MASK;
+            if (pureaction == MotionEvent.ACTION_POINTER_DOWN) {
+                pinchMBaseDist = getDistance(event);
+                pinchMBaseRatio = pinchMRatio;
+            } else {
+                float delta = (getDistance(event) - pinchMBaseDist) / STEP;
+                float multi = (float) Math.pow(2, delta);
+                pinchMRatio = Math.min(1024.0f, Math.max(0.1f, pinchMBaseRatio * multi));
+                float Textsize = pinchMRatio + 13;
+                if (Textsize > 22) {
+                    Textsize = 22;
+                } else if (Textsize < 13) {
+                    Textsize = 13;
+                }
+
+                outputTextView.setTextSize(Textsize);
+                Log.d(LOG_TAG, "mRation = " + pinchMRatio + "\tTextSize = " + Textsize);
+
+            }
+        }
+        return true;
+    }
+
+    int getDistance(MotionEvent event) {
+        int dx = (int) (event.getX(0) - event.getX(1));
+        int dy = (int) (event.getY(0) - event.getY(1));
+        return (int) (Math.sqrt(dx * dx + dy * dy));
+    }
+
+    public boolean onTouch(View v, MotionEvent event) {
+        return false;
+    }
+
+
+
+    //ACITVITY WAKE LOCK
+    //PowerManager pm;
+    //PowerManager.WakeLock wl;
+    protected boolean enableWakeLock = false;

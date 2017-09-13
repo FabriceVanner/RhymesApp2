@@ -1,9 +1,7 @@
 package rhymesapp;
 
-import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.graphics.Color;
 import android.text.Spannable;
 import android.text.SpannableString;
@@ -13,14 +11,11 @@ import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 import android.view.View;
-import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Random;
-
-import static rhymesapp.GuiUtils.DownloadOrCopyDialog.*;
 
 /**
  * Created by Fabrice Vanner on 05.10.2016.
@@ -228,31 +223,5 @@ public class GuiUtils {
         return progress;
     }
 
-    enum DownloadOrCopyDialog {DOWNLOAD, COPY, CANCEL, UNSET}
 
-    public static void showDownloadOrCopyDialog(Context context, final AlertDialogCallback<GuiUtils.DownloadOrCopyDialog> callback) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setMessage("Theres no DB present.\nWould you like to download from Web\n or copy the db from SD-Card?");
-        builder.setPositiveButton("Download", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {callback.alertDialogCallback(DOWNLOAD);
-            }
-        });
-        builder.setNegativeButton("Copy", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                callback.alertDialogCallback(COPY);
-            }
-        });
-        builder.setNeutralButton("CANCEL", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {callback.alertDialogCallback(CANCEL);
-            }
-        });
-        AlertDialog alert = builder.create();
-        //TODO: Unable to create service rhymesapp.RhymesService: android.view.WindowManager$BadTokenException: Unable to add window android.view.ViewRootImpl$W@eb93714 -- permission denied for this window type at android.app.ActivityThread.handleCreateService(ActivityThread.java:2921)
-        alert.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);//TYPE_SYSTEM_ALERT);
-        alert.show();
-        //dialog.dismiss();
-    }
 }

@@ -17,6 +17,8 @@ import java.util.List;
 
 /**
  * Created by Fabrice Vanner on 05.01.2017.
+ *
+ * intended to be used for finding assossiations
  */
 public class HtmlParser {
 

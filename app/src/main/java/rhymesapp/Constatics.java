@@ -1,9 +1,10 @@
 package rhymesapp;
 
 import android.content.Context;
+import android.os.Environment;
 
 import static rhymesapp.IOUtils.Filelocation.EXT_STORAGE_USER;
-import static rhymesapp.IOUtils.Filelocation.INTERNAL_DATABASES;
+import static rhymesapp.IOUtils.Filelocation.USER_FOLDER_INTERNAL;
 
 /**
  * Created by Fabrice Vanner on 14.09.2016.
@@ -29,13 +30,13 @@ public class Constatics {
             COLUMN_WORD, COLUMN_RHYMES};
 
     /** FILE IO */
-    /** the location where the database-file is initially saved*/
+    /** the location where the database-file is initially hosted by the user*/
     public static IOUtils.Filelocation dbSrcLocation = EXT_STORAGE_USER;
     /** the location where the database-file gets copied to internally*/
-    public static IOUtils.Filelocation dbDstLocation = INTERNAL_DATABASES;
+    public static IOUtils.Filelocation dbDstLocation = USER_FOLDER_INTERNAL;//INTERNAL_DATABASES;
 
     /**TODO: still needs to be changed for each Device!!*/
-    public static String INT_STORAGE_USER_PATH; //= "/storage/emulated/0/" + Environment.DIRECTORY_DOWNLOADS ;
+    public static String INT_STORAGE_USER_PATH= "/storage/emulated/0/" + Environment.DIRECTORY_DOWNLOADS ;//  /data/user/0
 
     /**TODO: still needs to be changed for each Device!!*/
     //public static String EXT_STORAGE_USER_PATH_ONE  = "/storage/3234-3432/Download";

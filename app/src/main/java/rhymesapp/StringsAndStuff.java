@@ -2,6 +2,8 @@ package rhymesapp;
 
 /**
  * Created by Fabrice Vanner on 01.12.2016.
+ *
+ * Home of error messages
  */
 public class StringsAndStuff {
     public static final String ERR_NO_DATABASE = "Database does not exist: creating empty Database";

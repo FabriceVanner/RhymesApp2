@@ -17,7 +17,8 @@ import java.text.DecimalFormat;
 /**
  * Created by Fabrice Vanner on 22.01.2017.
  * http://www.gregbugaj.com/?p=47
- *
+ * find out how fast internet is.
+ * Intended to find out which voice recognition (local or web) to use
  */
 public class InternetSpeed {
 
