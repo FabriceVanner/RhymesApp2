@@ -38,7 +38,9 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     public static Context context;
     public static boolean IS_FOREGROUND_SERVICE_RUNNING = false;
 
-    /** if the app has been freshly started and is not just beeing resumed from background*/
+    /**
+     * if the app has been freshly started and is not just beeing resumed from background
+     */
     public static boolean isFreshlyStarted = true;
     private static RhymesService rhymesService;
 
@@ -48,7 +50,6 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
 
     // options
     private boolean enableSpeechRecognition = true;
-
 
 
     /**
@@ -67,7 +68,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         broadcaster = LocalBroadcastManager.getInstance(this);
         rhymesService = this;
         //DataBaseHelper.getInstance(rhymesBaseActivity.getApplicationContext());
-        dataBaseHelper = DataBaseHelper.getInstance(getApplicationContext(),this);
+        dataBaseHelper = DataBaseHelper.getInstance(getApplicationContext(), this);
         guiUtils = GuiUtils.getInstance(getApplicationContext());
         initDataProvider();
         rhymeResults = new Vector<>();
@@ -89,8 +90,8 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         if (enableTextToSpeech) {
             textToSpeechEngine = new TextToSpeech(this, this);
         }
-    //TODO: hier oder in OnStartCommand?:
-        if(!IS_FOREGROUND_SERVICE_RUNNING){
+        //TODO: hier oder in OnStartCommand?:
+        if (!IS_FOREGROUND_SERVICE_RUNNING) {
             Log.d(LOG_TAG, "onCreate(): !IS_FOREGROUND_SERVICE_RUNNING: ");
             initForegroundService();
         }
@@ -120,7 +121,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         //      NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 //        notificationManager.cancel(NOTIFICATION_ID);
         super.onDestroy();
-        IS_FOREGROUND_SERVICE_RUNNING=false;
+        IS_FOREGROUND_SERVICE_RUNNING = false;
         Log.d(LOG_TAG, "dataBaseHelper.close()");
         dataBaseHelper.close();
     }
@@ -198,10 +199,10 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
                 //.setCustomBigContentView(notificationView)
                 .setOngoing(true)
                 .setContentIntent(pendingIntent)
-                //.setStyle(new Notification.BigTextStyle().bigText(longText))
-                ;
-        foregroundServiceNotification= mNotifyBuilder.build();
-        foregroundServiceNotification.flags=Notification.FLAG_ONGOING_EVENT | Notification.FLAG_NO_CLEAR;
+        //.setStyle(new Notification.BigTextStyle().bigText(longText))
+        ;
+        foregroundServiceNotification = mNotifyBuilder.build();
+        foregroundServiceNotification.flags = Notification.FLAG_ONGOING_EVENT | Notification.FLAG_NO_CLEAR;
 
         /**
          Is your service a started service or a bound service? I had the same issue with a bound service,
@@ -211,15 +212,16 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
          */
         Log.d(LOG_TAG, "startForeground():");
         startForeground(Constatics.NOTIFICATION_ID.FOREGROUND_SERVICE, foregroundServiceNotification);
-        IS_FOREGROUND_SERVICE_RUNNING =true;
-     //  startForeground(1,foregroundServiceNotification); http://stackoverflow.com/questions/8725909/startforeground-does-not-show-my-notification
+        IS_FOREGROUND_SERVICE_RUNNING = true;
+        //  startForeground(1,foregroundServiceNotification); http://stackoverflow.com/questions/8725909/startforeground-does-not-show-my-notification
+        checkAndEventuallyStartOrStopAutoRandom();
     }
 
 
-
-    public void buildNotification(){
+    public void buildNotification() {
 
     }
+
     /**
      * This is the method that can be called to update the Notification
      */
@@ -228,7 +230,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
 
         //foregroundServiceNotification.
         //     findViewById(R.id.notification_button_play)).setImageResource();
-          mNotificationManager.notify(101, foregroundServiceNotification);
+        mNotificationManager.notify(101, foregroundServiceNotification);
     }
 
     /**
@@ -244,8 +246,9 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
 
     /**
      * onStartCommand() is called every time a client starts the service using startService(Intent intent). This means that onStartCommand() can get called multiple times. You should do the things in this method that are needed each time a client requests something from your service. This depends a lot on what your service does and how it communicates with the clients (and vice-versa).
-
-     If you don't implement onStartCommand() then you won't be able to get any information from the Intent that the client passes to onStartCommand() and your service might not be able to do any useful work.
+     * <p>
+     * If you don't implement onStartCommand() then you won't be able to get any information from the Intent that the client passes to onStartCommand() and your service might not be able to do any useful work.
+     *
      * @param intent
      * @param flags
      * @param startId
@@ -253,26 +256,26 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
      */
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        Log.d(LOG_TAG, "onStartCommand()");
         context = this.getApplicationContext();
         //      return Service.START_NOT_STICKY;
 
         //if (intent.getAction().equals(Constatics.ACTION.STARTFOREGROUND_ACTION)) {
-       //     initForegroundService();
+        //     initForegroundService();
         //} else if (intent.getAction().equals(Constatics.ACTION.STOPFOREGROUND_ACTION)) {
-         //TODO: von Activity in onDestroy oder so, aufrufen lassen   stopForegroundService();
-       // }
+        //TODO: von Activity in onDestroy oder so, aufrufen lassen   stopForegroundService();
+        // }
         return START_STICKY;
     }
 
-    public void toggleAutoRandom(){
-        enableAutoRandom =!enableAutoRandom;
-
-        if(enableAutoRandom){
+    public void checkAndEventuallyStartOrStopAutoRandom() {
+        Log.d(LOG_TAG, "checkAndEventuallyStartOrStopAutoRandom()");
+        if (enableAutoRandom) {
             startTimerHandler();
-            mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play,android.R.drawable.ic_media_pause);
-        }else{
+            mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play, android.R.drawable.ic_media_pause);
+        } else {
             stopTimerHandler();
-            mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play,android.R.drawable.ic_media_play);
+            mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play, android.R.drawable.ic_media_play);
         }
         mNotificationManager.notify(101, mNotifyBuilder.build());
         //// Local Service Binding Communication
@@ -299,6 +302,13 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
                 */
     }
 
+    public void toggleAutoRandom() {
+        Log.d(LOG_TAG, "toggleAutoRandom()");
+        enableAutoRandom = !enableAutoRandom;
+        checkAndEventuallyStartOrStopAutoRandom();
+
+    }
+
     /**
      * Called when user clicks the "play/pause" button on the on-going system Notification.
      */
@@ -307,7 +317,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         public void onReceive(Context context, Intent intent) {
             Log.d(LOG_TAG, "RhymesService: NotificationPlayButtonHandler: onReceive():");
             String action = intent.getStringExtra("action");
-           // Toast.makeText(context, "Play Clicked " + action, Toast.LENGTH_SHORT).show();
+            // Toast.makeText(context, "Play Clicked " + action, Toast.LENGTH_SHORT).show();
             //rhymesService.broadcastCommandToBaseActivity("toggleNotification_button_play_image","");
             //foregroundServiceNotification
 
@@ -317,7 +327,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
             //rhymesService.toggleTimerHandler();
             // making sure that both are on synch ?!            rhymesService.enableTextToSpeech = rhymesService.enableAutoRandom;
             rhymesService.toggleAutoRandom();
-            rhymesService.broadcastCommandToBaseActivity(TOGGLEAUTORANDOM_ACTION,"");
+            rhymesService.broadcastCommandToBaseActivity(TOGGLEAUTORANDOM_ACTION, "");
             //rhymesService.broadcastCommandToBaseActivity(TOGGLEAUTORANDOM_ACTION,"");
         }
     }
@@ -328,7 +338,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     public static class NotificationSkipButtonHandler extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            rhymesService.broadcastCommandToBaseActivity(RANDOMQUERY_ACTION,"");
+            rhymesService.broadcastCommandToBaseActivity(RANDOMQUERY_ACTION, "");
             Toast.makeText(context, "Next Clicked", Toast.LENGTH_SHORT).show();
         }
     }
@@ -352,7 +362,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
             Toast.makeText(context, "Close Clicked sending stop intent", Toast.LENGTH_SHORT).show();
 
 
-            rhymesService.broadcastCommandToBaseActivity(CLOSEAPP_ACTION,"");
+            rhymesService.broadcastCommandToBaseActivity(CLOSEAPP_ACTION, "");
             Intent stopIntent = new Intent(context.getApplicationContext(), RhymesService.class);
             rhymesService.stopService(stopIntent);
             rhymesService.stopSelf();
@@ -378,6 +388,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
 
     /**
      * looks up every element in the database by creating: AsyncRhymesQueryTasks
+     *
      * @param words
      */
     public void asyncRhymesQuery(ArrayList<String> words) {
@@ -436,9 +447,9 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
             //todo: http://stackoverflow.com/questions/14885368/update-text-of-notification-not-entire-notification
 
             //mNotifyBuilder.setContentText(wordRhymesPair.getWord());
-            mNotifyBuilder.mNotification.contentView.setTextColor(R.id.notification_text_artist,guiUtils.getRandomColor());
-            mNotifyBuilder.mNotification.contentView.setTextViewText(R.id.notification_text_artist,wordRhymesPair.getWord());
-            mNotificationManager.notify(101,mNotifyBuilder.build());
+            mNotifyBuilder.mNotification.contentView.setTextColor(R.id.notification_text_artist, guiUtils.getRandomColor());
+            mNotifyBuilder.mNotification.contentView.setTextViewText(R.id.notification_text_artist, wordRhymesPair.getWord());
+            mNotificationManager.notify(101, mNotifyBuilder.build());
 
             if (enableTextToSpeech) {
                 if (textToSpeechEngine == null) {
@@ -466,10 +477,10 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         /* TODO: Uncomment*/
         boolean cont = false;
         try {
-          dataBaseHelper.setUpInternalDataBase();
+            dataBaseHelper.setUpInternalDataBase();
         } catch (IOException ioe) {
             exceptionsToErrormessages(ioe);
-            broadcastCommandToBaseActivity(OUTPUTTEXTVIEW_ACTION,"No loadable DB On Storage");
+            broadcastCommandToBaseActivity(OUTPUTTEXTVIEW_ACTION, "No loadable DB On Storage");
             broadcastCommandToBaseActivity(SHOWDOWNLOADORCOPYDIALOG_ACTION, "");
             return;
         }
@@ -477,7 +488,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         //myDbHelper.getTableNames();
     }
 
-    protected void exceptionsToErrormessages(Exception ioe){
+    protected void exceptionsToErrormessages(Exception ioe) {
         String mess = "";
         if (ioe.getCause() != null) {
             mess = ioe.getCause().getMessage();
@@ -524,15 +535,12 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
 
 
     public void startTimerHandler() {
-            timerHandler.postDelayed(timerRunnable, 4000);
+        timerHandler.postDelayed(timerRunnable, 4000);
     }
 
     public void stopTimerHandler() {
-            timerHandler.removeCallbacks(timerRunnable);
+        timerHandler.removeCallbacks(timerRunnable);
     }
-
-
-
 
 
 //   SERVICE / ACTIVITY COMMUNICATION
@@ -603,13 +611,12 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     }
 
 
-
 // TEXT TO SPEECH:
 
     public boolean enableTextToSpeech;
 
-    public void toggleTextToSpeech(){
-        enableTextToSpeech =!enableTextToSpeech;
+    public void toggleTextToSpeech() {
+        enableTextToSpeech = !enableTextToSpeech;
     }
 
     private void setSpeech() {
@@ -651,7 +658,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         if (!speechRecognitionIsRunning) speech.startListening(recognizerIntent);
         else speech.stopListening();
 
-      //  if (speechRecognitionIsRunning) onResults2(null);
+        //  if (speechRecognitionIsRunning) onResults2(null);
         speechRecognitionIsRunning = !speechRecognitionIsRunning;
 
     }

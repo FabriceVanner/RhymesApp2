@@ -62,7 +62,7 @@ public class Constatics {
 
     /** SEARCH */
 
-    static  final boolean enableHashMapPrefetchDefault = false;
+    static  final boolean ENABLEHASHMAPPREFETCHDEFAULT = false;
     static  final boolean enableHashMapThreadLoading = true;
     /** the setting changed by gui-elements / the user */
     private static  boolean enableHashMapPrefetch = false;
@@ -76,11 +76,16 @@ public class Constatics {
 
     /** recognize english speech as well*/
     static  final boolean addEngSpeechRecog= false;
-    static  final boolean enableSpeechRecognitionDefault = true;
+    static  final boolean ENABLESPEECHRECOGNITIONDEFAULT = true;
 
-    static final boolean enableTextToSpeechDefault = false;
-    static final int autoRandomSpeedinMSDefault = 6000;
-    static final boolean enableWakeLockDefault = false;
+
+
+    /* GUI SETTINGS: DEFFAULT */
+    static final boolean ENABLETEXTTOSPEECHDEFAULT = false;
+    static final int AUTORANDOMSPEEDINMSDEFAULT = 6000;
+    static final boolean ENABLEWAKELOCKDEFAULT = false;
+    static final int TEXTFIELDSFONTSIZEDEFAULT =26;
+
     /** SINGLETONS*/
     public static IOUtils IOUtils;
     public static GuiUtils guiUtils;
@@ -134,7 +139,7 @@ public class Constatics {
 public interface ACTION {
     public static String MAIN_ACTION = "rhymesapp.alertdialog.action.main";
     public static String COLOREDOUTPUTTEXTVIEW_ACTION = "rhymesapp.action.showcoloredtextoutput";
-    public static String INPUTTEXTVIEW_ACTION = "rhymesapp.inputtextview";
+    public static String INPUTTEXTVIEW_ACTION = "rhymesapp.action.inputtextview";
     public static String TOGGLEPLAY_ACTION = "rhymesapp.action.toggleplay";
     public static String ADDTORHYMERESULTVECTOR_ACTION = "rhymesapp.action.addtorhymeresultvector";
     public static String CLICKABLEWORDSTOINPUTTEXTVIEw_ACTION = "rhymesapp.action.clickablewordstoinputtextview";

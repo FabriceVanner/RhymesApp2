@@ -49,7 +49,8 @@ public class RhymesBaseActivity extends Activity implements AlertDialogCallback<
     private Button randomQueryButton;
     private Button keysButton;
     private ProgressBar recvolumeProgrBar;
-    private SeekBar textFieldsSizeBar;
+    private SeekBar textFieldsFontSizeBar;
+    private int textFieldsFontSize;
     private SeekBar autoRandomSpeedBar;
 
     private ToggleButton associationsToggle;
@@ -77,7 +78,6 @@ public class RhymesBaseActivity extends Activity implements AlertDialogCallback<
 
     //saving settings:
     private SharedPreferences sharedPreferences;
-    private SharedPreferences.Editor editor;
 
 
     /**
@@ -120,13 +120,14 @@ Because the onCreate() method is called whether the system is creating a new ins
  */
         if ((savedInstanceState == null)) {
             rhymesService.isFreshlyStarted = true;
-            enableSpeechRecognition = enableSpeechRecognitionDefault;
-            enableHashMapPrefetch = enableHashMapPrefetchDefault;
-            rhymesService.autoRandomSpeedinMS = autoRandomSpeedinMSDefault;
+            enableSpeechRecognition = ENABLESPEECHRECOGNITIONDEFAULT;
+            enableHashMapPrefetch = ENABLEHASHMAPPREFETCHDEFAULT;
+            rhymesService.autoRandomSpeedinMS = AUTORANDOMSPEEDINMSDEFAULT;
+            textFieldsFontSize = TEXTFIELDSFONTSIZEDEFAULT;
             //   enableWakeLock = enableWakeLockDefault;
         }else{
             rhymesService.isFreshlyStarted = false;
-            enableHashMapPrefetch = (savedInstanceState.getBoolean("enableHashMapPrefetch", enableHashMapPrefetchDefault));
+            enableHashMapPrefetch = (savedInstanceState.getBoolean("enableHashMapPrefetch", ENABLEHASHMAPPREFETCHDEFAULT));
             outputTextView.setText(savedInstanceState.getCharSequence("outputTextViewText"));
             inputTextView.setText(savedInstanceState.getCharSequence("inputTextViewText"));
             enableAutoRandom = savedInstanceState.getBoolean("enableAutoRandom", false);
@@ -177,10 +178,13 @@ Because the onCreate() method is called whether the system is creating a new ins
      * store settings in file
      */
     protected void savePersistentSettings() {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+
         //editor.putBoolean("enableTextToSpeech", enableTextToSpeech);
         editor.putInt("autoRandomSpeedinMS", rhymesService.autoRandomSpeedinMS);
-        editor.putBoolean("enableAutoRandom", enableAutoRandom);
-        editor.putBoolean("loadHashMapPrefetch", enableHashMapPrefetch);
+        editor.putBoolean("enableAutoRandom", rhymesService.enableAutoRandom);
+        editor.putInt("textFieldsFontSize", textFieldsFontSize);
+       // editor.putBoolean("loadHashMapPrefetch", enableHashMapPrefetch);
         editor.commit();
 
     }
@@ -189,15 +193,16 @@ Because the onCreate() method is called whether the system is creating a new ins
      * restore settings from file
      */
     protected void loadPersistentSettings() {
-        //SharedPreferences sharedPreferences = getPreferences(MODE_PRIVATE);
-        rhymesService.autoRandomSpeedinMS = (sharedPreferences.getInt("autoRandomSpeedinMS", autoRandomSpeedinMSDefault));
-        enableAutoRandom = sharedPreferences.getBoolean("enableAutoRandom", false);
+
+        rhymesService.autoRandomSpeedinMS = (sharedPreferences.getInt("autoRandomSpeedinMS", AUTORANDOMSPEEDINMSDEFAULT));
+        rhymesService.enableAutoRandom = sharedPreferences.getBoolean("enableAutoRandom", false);
+        //TODO: noch kaputt: 
+        this.textFieldsFontSize = sharedPreferences.getInt("textFieldsFontSize", TEXTFIELDSFONTSIZEDEFAULT);
         //enableTextToSpeech = sharedPreferences.getBoolean("enableTextToSpeech", enableTextToSpeechDefault);
-        enableHashMapPrefetch = sharedPreferences.getBoolean("loadHashMapPrefetch", enableHashMapPrefetchDefault);
+    //    enableHashMapPrefetch = sharedPreferences.getBoolean("loadHashMapPrefetch", enableHashMapPrefetchDefault);
 
 
     }
-
 
 // LIFE-CYCLE
 
@@ -212,8 +217,13 @@ Because the onCreate() method is called whether the system is creating a new ins
         helper = new HelperActivity(this);
         guiUtils = GuiUtils.getInstance(context);
 
+        this.sharedPreferences = getPreferences(MODE_PRIVATE);
+        if (savedInstanceState ==null) {
+            loadPersistentSettings();
+        } else{
+                restoreInstanceState(savedInstanceState);
+            }
 
-        restoreInstanceState(savedInstanceState);
 
 
         //   rhymeResults = new Vector<>();
@@ -237,13 +247,15 @@ Because the onCreate() method is called whether the system is creating a new ins
 
         /** sets the frequence for automatic rhyme queries*/
         autoRandomSpeedBar = (SeekBar) findViewById(R.id.autoRandomSpeedBar);
-        autoRandomSpeedBar.setMax(15000);
+        autoRandomSpeedBar.setMax(20000);
         autoRandomSpeedBar.setBottom(3000);
-        autoRandomSpeedBar.setProgress((int) autoRandomSpeedinMSDefault);
+        autoRandomSpeedBar.setProgress((int) rhymesService.autoRandomSpeedinMS);
 
         outputTextView = (TextView) findViewById(R.id.outputTextView);
+        outputTextView.setTextSize(textFieldsFontSize);
         inputTextView = (EditText) findViewById(R.id.inputText);
         inputTextView.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+        inputTextView.setTextSize(textFieldsFontSize);
         //inputTextView.setEnabled(true);
 
         /** adjust rhyme-queries to find associations*/
@@ -266,10 +278,10 @@ Because the onCreate() method is called whether the system is creating a new ins
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
 
         /** sets the font-sizes of the text-displays*/
-        textFieldsSizeBar = (SeekBar) findViewById(R.id.outputSizeBar);
-        textFieldsSizeBar.setMax(80);
-        textFieldsSizeBar.setBottom(16);
-        textFieldsSizeBar.setProgress((int) outputTextView.getTextSize());
+        textFieldsFontSizeBar = (SeekBar) findViewById(R.id.outputSizeBar);
+        textFieldsFontSizeBar.setMax(80);
+        textFieldsFontSizeBar.setBottom(16);
+        textFieldsFontSizeBar.setProgress((int) TEXTFIELDSFONTSIZEDEFAULT);
 
         /** deprecated, hashmap queries are not necessary*/
         hmToggle = (ToggleButton) findViewById(R.id.hashMapToggle);
@@ -358,10 +370,12 @@ Because the onCreate() method is called whether the system is creating a new ins
         });
 
 
-        textFieldsSizeBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        textFieldsFontSizeBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                //float inputTextSize = outputTextView.getTextSize();
                 outputTextView.setTextSize(progress);
+
                 float inputTextSize = inputTextView.getTextSize();
                 inputTextView.setTextSize(inputTextSize + (progress - inputTextSize));
             }
@@ -564,13 +578,27 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
         if (isFinishing()) {
             Log.d(LOG_TAG, "onDestroy(): isFinishing()==true");
             /** TODO: alle beide methoden nötig? reihenfolge?*/
-            /*
+
+            savePersistentSettings();
             Log.d(LOG_TAG, "onDestroy(): stopService()");
-            Intent intentStopService = new Intent(this, RhymesService.class);
-            stopService(intentStopService); // dasselbe wie stopSelf() siehe RhymesService.stopForegroundService
-            */
+
+            // Local Service Binding Communication
+            if (rhymesServiceIsBound) {
+                Log.d(LOG_TAG, "onStop(): rhymesServiceIsBound==true");
+                Log.d(LOG_TAG, "onStop(): rhymesService.stopTimerHandler();");
+                rhymesService.stopTimerHandler();
+
+
+                Log.d(LOG_TAG, "onStop(): rhymesServiceIsBound==true : unbindService()");
+                unbindService(rhymesServiceBindConnection);
+                Log.d(LOG_TAG, "onStop(): rhymesServiceIsBound=false");
+                rhymesServiceIsBound = false;
+            }
             rhymesService.stopForegroundService();
-       }
+        //    Intent intentStopService = new Intent(this, RhymesService.class);
+         //   stopService(intentStopService); // dasselbe wie stopSelf() siehe RhymesService.stopForegroundService
+
+        }
     }
 
     @Override
@@ -580,26 +608,21 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
 
         LocalBroadcastManager.getInstance(this).unregisterReceiver(broadcastReceiver);
         /* wenn ich ihn hier unbinde lässt er sich nachdem die act einmal im hintergrund war nicht mehr stoppen
-        // Local Service Binding Communication
-        if (rhymesServiceIsBound) {
-            Log.d(LOG_TAG, "onStop(): rhymesServiceIsBound==true : unbindService()");
-            unbindService(rhymesServiceBindConnection);
-            Log.d(LOG_TAG, "onStop(): rhymesServiceIsBound=false");
-            rhymesServiceIsBound = false;
-        }
+
         */
         super.onStop();
     }
 
     @Override
     protected void onStart() {
-
+        Log.d(LOG_TAG, "onStart()");
         //You should usually not bind in onResume() and unbind in onPause()
         // Local Service Binding Communication
         Intent intent = new Intent(this, RhymesService.class);
         //TODO: rhymesServiceIsBound=(vom rückgabewert von bindservice setzen lassen?
         if(!rhymesServiceIsBound) {
             bindService(intent, rhymesServiceBindConnection, Context.BIND_AUTO_CREATE);
+
         }
         // Communication from service to activiy via Loacalbroadcast:
         IntentFilter intentFilter = new IntentFilter();
@@ -666,7 +689,9 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
         //String type = intent.getStringExtra("TYPE");
         String text = intent.getStringExtra("TEXT");
         //Toast.makeText(this,"updateUI: "+ type+" "+text,Toast.LENGTH_SHORT).show();
-        Log.d(LOG_TAG, "updateUI(): type = "+type);
+        if(type!= COLOREDOUTPUTTEXTVIEW_ACTION&& type!=INPUTTEXTVIEW_ACTION){
+            Log.d(LOG_TAG, "updateUI(): type = "+type);
+        }
         if (type == COLOREDOUTPUTTEXTVIEW_ACTION) prepareAndSendColoredTextView(outputTextView, text);
        // else if (type == "toggleAutoRandomSwitchSetCheckedVisually"){
             //autoRandomToggle.setChecked(true);
