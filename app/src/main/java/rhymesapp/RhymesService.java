@@ -151,6 +151,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         Intent buttonPlayIntent = new Intent(this, NotificationPlayButtonHandler.class);
         buttonPlayIntent.putExtra("action", "togglePlay");
 
+
         PendingIntent buttonPlayPendingIntent = pendingIntent.getBroadcast(this, 0, buttonPlayIntent, 0);
         notificationView.setOnClickPendingIntent(R.id.notification_button_play, buttonPlayPendingIntent);
 
@@ -263,6 +264,41 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         return START_STICKY;
     }
 
+    public void toggleAutoRandom(){
+        enableAutoRandom =!enableAutoRandom;
+
+        if(enableAutoRandom){
+            startTimerHandler();
+            mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play,android.R.drawable.ic_media_pause);
+        }else{
+            stopTimerHandler();
+            mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play,android.R.drawable.ic_media_play);
+        }
+        mNotificationManager.notify(101, mNotifyBuilder.build());
+        //// Local Service Binding Communication
+        //if (rhymesServiceIsBound) {
+
+        // Call a method from the LocalService.                // However, if this call were something that might hang, then this request should                // occur in a separate thread to avoid slowing down the activity performance.
+        //}
+                /*
+                Intent buttonPlayIntent = new Intent(context, RhymesService.NotificationPlayButtonHandler.class);
+                PendingIntent buttonPlayPendingIntent;
+                    //for intent broadcast to service
+                    buttonPlayIntent.putExtra("action", "togglePlay");
+
+                buttonPlayPendingIntent = pendingIntent.getBroadcast(context, 0, buttonPlayIntent, 0);
+                */
+                /*
+                //for intent broadcast to service
+                try {
+                    // Perform the operation associated with our pendingIntent
+                    buttonPlayPendingIntent.send();
+                } catch (PendingIntent.CanceledException e) {
+                    e.printStackTrace();
+                }
+                */
+    }
+
     /**
      * Called when user clicks the "play/pause" button on the on-going system Notification.
      */
@@ -280,7 +316,9 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
 
             //rhymesService.toggleTimerHandler();
             // making sure that both are on synch ?!            rhymesService.enableTextToSpeech = rhymesService.enableAutoRandom;
+            rhymesService.toggleAutoRandom();
             rhymesService.broadcastCommandToBaseActivity(TOGGLEAUTORANDOM_ACTION,"");
+            //rhymesService.broadcastCommandToBaseActivity(TOGGLEAUTORANDOM_ACTION,"");
         }
     }
 

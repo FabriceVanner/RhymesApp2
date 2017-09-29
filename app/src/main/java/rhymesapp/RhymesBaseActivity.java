@@ -30,6 +30,7 @@ import static rhymesapp.Constatics.ACTION.COLOREDOUTPUTTEXTVIEW_ACTION;
 import static rhymesapp.Constatics.ACTION.INPUTTEXTVIEW_ACTION;
 import static rhymesapp.RhymesBaseActivity.DownloadOrCopyDialog.CANCEL;
 import static rhymesapp.RhymesBaseActivity.DownloadOrCopyDialog.DOWNLOAD;
+import static rhymesapp.RhymesService.enableAutoRandom;
 
 
 public class RhymesBaseActivity extends Activity implements AlertDialogCallback<RhymesBaseActivity.DownloadOrCopyDialog> { /*implements View.OnKeyListener */
@@ -66,7 +67,7 @@ public class RhymesBaseActivity extends Activity implements AlertDialogCallback<
 
     //gui settings
     private boolean enableSpeechRecognition;
-    private boolean enableAutoRandom = false;
+    //private static boolean enableAutoRandom = false;
     //public int autoRandomSpeedinMS;
 
     // options
@@ -133,10 +134,15 @@ Because the onCreate() method is called whether the system is creating a new ins
             // enableTextToSpeech = (savedInstanceState.getBoolean("enableTextToSpeech", enableHashMapPrefetchDefault));
             //    rhymesServiceIsBound=savedInstanceState.getBoolean("rhymesServiceIsBound",false);
 
+            // wichtig beim rückholen der app aus dem background, damit der Button dem aktuallen zustand des service angepasst wird
+            actualizePlayPauseImageButton();
         }
         if (hmToggle != null) {
             hmToggle.setChecked(enableHashMapPrefetch);
         }
+
+
+
 
         //TODO http://blog.cindypotvin.com/saving-preferences-in-your-android-application/
 
@@ -444,7 +450,9 @@ Because the onCreate() method is called whether the system is creating a new ins
             @Override
             public void onClick(View view) {
                 Log.d(LOG_TAG,"play_Pause_ImageButton: onClick():");
-                toggleAutoRandom();
+                rhymesService.toggleAutoRandom();
+                actualizePlayPauseImageButton();
+
             }
 
 
@@ -513,42 +521,17 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
 */
     }
 
-    public void toggleAutoRandom(){
-        enableAutoRandom =!enableAutoRandom;
+    public void actualizePlayPauseImageButton(){
 
-        if(enableAutoRandom){
-            rhymesService.startTimerHandler();
-            rhymesService.mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play,android.R.drawable.ic_media_pause);
-            play_Pause_ImageButton.setBackgroundColor(parseColor("#000000"));
+
+        if(rhymesService.enableAutoRandom){
+            rhymesBaseActivity.play_Pause_ImageButton.setBackgroundColor(parseColor("#000000"));
         }else{
-            rhymesService.stopTimerHandler();
-            rhymesService.mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play,android.R.drawable.ic_media_play);
-            play_Pause_ImageButton.setBackgroundColor(parseColor("#d30e63"));
+            rhymesBaseActivity.play_Pause_ImageButton.setBackgroundColor(parseColor("#d30e63"));
         }
-        rhymesService.mNotificationManager.notify(101,rhymesService.mNotifyBuilder.build());
-        //// Local Service Binding Communication
-        //if (rhymesServiceIsBound) {
-
-        // Call a method from the LocalService.                // However, if this call were something that might hang, then this request should                // occur in a separate thread to avoid slowing down the activity performance.
-        //}
-                /*
-                Intent buttonPlayIntent = new Intent(context, RhymesService.NotificationPlayButtonHandler.class);
-                PendingIntent buttonPlayPendingIntent;
-                    //for intent broadcast to service
-                    buttonPlayIntent.putExtra("action", "togglePlay");
-
-                buttonPlayPendingIntent = pendingIntent.getBroadcast(context, 0, buttonPlayIntent, 0);
-                */
-                /*
-                //for intent broadcast to service
-                try {
-                    // Perform the operation associated with our pendingIntent
-                    buttonPlayPendingIntent.send();
-                } catch (PendingIntent.CanceledException e) {
-                    e.printStackTrace();
-                }
-                */
     }
+
+
 
     //todo: autohide:  moveTaskToBack(true);
     @Override
@@ -564,6 +547,7 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
     public void onResume() {
         Log.d(LOG_TAG, "onResume()");
         super.onResume();
+        actualizePlayPauseImageButton();
 
     }
 
@@ -708,18 +692,15 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
         } else if (type == OUTPUTTEXTVIEW_ACTION) {
             outputTextView.scrollTo(0, 0);
             prepareAndSendTextView(outputTextView, text);
-        //} else if ( type == "toggleNotification_button_play_image"){
-
+            //} else if ( type == "toggleNotification_button_play_image"){
+        }else if (type == TOGGLEAUTORANDOM_ACTION){
+              actualizePlayPauseImageButton();
      //       rhymesService.mNotificationManager.notify(101,rhymesService.mNotifyBuilder.build());
        //     findViewById(R.id.notification_button_play)).setImageResource();
         }else if (type==CLOSEAPP_ACTION) {
             /** TODO: does not work...*/
             finish();
             onDestroy();
-        }else if(type==TOGGLEAUTORANDOM_ACTION){
-          //  TODO: methode wird beim toggeln des Playbuttons in der Notification mit "toggleAutoRandom" doppelt aufgerufen nachdem das Programm einmal im hintergrund war
-               // autoRandomToggle.setChecked(!autoRandomToggle.isChecked());
-                toggleAutoRandom();
         }else if(type==RANDOMQUERY_ACTION){
             //TODO: ist etwas umständlich: Notification ruft vom Service über broadcast die activity an damit diese wieder die Methode im Service auslöst
             rhymesService.findRandomWordPair();
