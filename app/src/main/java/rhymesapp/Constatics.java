@@ -130,10 +130,22 @@ public class Constatics {
 
 //####################################################################################################################
     //SERVICE:
+    /* ACHTUNG: jede hier definierte action muss auch im LocalbroadcastManager im IntentFilter mit .addAction(  ) definiert werden, sonst filtert der ddie weg*/
 public interface ACTION {
     public static String MAIN_ACTION = "rhymesapp.alertdialog.action.main";
-    public static String STARTFOREGROUND_ACTION = "rhymesapp.alertdialog.action.startforeground";
-    public static String STOPFOREGROUND_ACTION = "rhymesapp.alertdialog.action.stopforeground";
+    public static String COLOREDOUTPUTTEXTVIEW_ACTION = "rhymesapp.action.showcoloredtextoutput";
+    public static String INPUTTEXTVIEW_ACTION = "rhymesapp.inputtextview";
+    public static String TOGGLEPLAY_ACTION = "rhymesapp.action.toggleplay";
+    public static String ADDTORHYMERESULTVECTOR_ACTION = "rhymesapp.action.addtorhymeresultvector";
+    public static String CLICKABLEWORDSTOINPUTTEXTVIEw_ACTION = "rhymesapp.action.clickablewordstoinputtextview";
+    public static String EMPTYRHYMERESULTSVECTOR_ACTION = "rhymesapp.action.emptyrhymeresultsvector";
+    public static String SHOWDOWNLOADORCOPYDIALOG_ACTION = "rhymesapp.action.showdownloadorcopydialog";
+    public static String UPDATEDOWNCOPYPROGRESS_ACTION = "rhymesapp.action.updatedowncopyprogress";
+    public static String SHOWDOWNLOADDIALOG_ACTION = "rhymesapp.action.showdownloaddialog";
+    public static String OUTPUTTEXTVIEW_ACTION = "rhymesapp.action.outputtextview";
+    public static String CLOSEAPP_ACTION = "rhymesapp.action.closeapp";
+    public static String TOGGLEAUTORANDOM_ACTION = "rhymesapp.action.toggleautorandom";
+    public static String RANDOMQUERY_ACTION = "rhymesapp.action.randomquery";
 }
 
     public interface NOTIFICATION_ID {

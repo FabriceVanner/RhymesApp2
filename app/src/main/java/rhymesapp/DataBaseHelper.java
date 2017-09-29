@@ -125,7 +125,8 @@ public class DataBaseHelper extends SQLiteOpenHelper {
 
     public  void setDbReadyLoaded(boolean dbReadyLoaded) {
         DataBaseHelper.dbReadyLoaded = dbReadyLoaded;
-        if(dbReadyLoaded) {
+        if(dbReadyLoaded&& !rhymeService.isFreshlyStarted) {
+
             rhymeService.broadcastCommandToBaseActivity("outputTextView", "DB ready");
         }else{
 

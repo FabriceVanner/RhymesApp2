@@ -56,6 +56,12 @@ public class GuiUtils {
         this.context = context;
     }
 
+    public int getRandomColor(){
+        Random random = new Random();
+        return colorArr[random.nextInt(colorArr.length)];
+    }
+
+
     /**
      * @param text
      * @param delimiter used to use a new color
