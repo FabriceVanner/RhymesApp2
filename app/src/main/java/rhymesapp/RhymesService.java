@@ -22,7 +22,10 @@ import android.widget.Toast;
 import com.rhymesapp.R;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Vector;
 
@@ -136,7 +139,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
 
 
     public void initForegroundService() {
-
+        // TODO: no notification on Moto E  https://stackoverflow.com/questions/46111860/oreo-foreground-service-does-not-show-foreground-notification
         Log.i(LOG_TAG, "initForegroundService(): Received Start Foreground Intent ");
 
         Intent notificationIntent = new Intent(this, RhymesBaseActivity.class);
@@ -541,6 +544,72 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     public void stopTimerHandler() {
         timerHandler.removeCallbacks(timerRunnable);
     }
+
+
+
+// SCRAPE WEBSITE:
+
+    public void scrapeSite(String word){
+        if(word!="")new AsyncAssociationSiteScraper().execute(word);
+        else{
+
+        }
+    }
+
+    /**
+     *
+     */
+    private class AsyncAssociationSiteScraper extends AsyncTask<String, Void, List<String>> {
+        @Override
+        protected List<String> doInBackground(String... query) {
+            HtmlParser htmlParser = new HtmlParser();
+            List<String> stringList=null;
+            try {
+                //htmlParser.getConnection("https://wordassociations.net/de/assoziationen-mit-dem-wort/Liebe");
+                //connection.setRequestMethod("GET");
+                URL url = new URL("https://wordassociations.net/de/assoziationen-mit-dem-wort/"+query[0]);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+            //Emulate the normal desktop
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:55.0) Gecko/20100101 Firefox/55.0");
+                String htmlString = htmlParser.getHTMLStringToScrape(connection);
+                stringList = htmlParser.parseWordAssociationsAndroid(htmlString);
+
+            } catch (IOException e) {
+                e.printStackTrace();
+                stringList = new ArrayList<>();
+                stringList.add("AsyncAssociationSiteScraper: Error: IOException");
+            }
+            return stringList;
+
+        }
+
+
+        @Override
+        protected void onPostExecute(List<String> stringList) {
+            super.onPostExecute(stringList);
+            String out ="";
+            if (stringList!=null) {
+                out = stringList.toString();
+                if(out.length()>4) {
+                    out = out.substring(2, out.length() - 1);
+                }
+                out = out.replaceAll(", ","\n");
+            }else{
+                out ="Association not found or no connection";
+            }
+            broadcastCommandToBaseActivity(COLOREDOUTPUTTEXTVIEW_ACTION, out);
+        }
+        /*
+        @Override
+        protected WordRhymesPair onPostExecute(WordRhymesPair result) {
+            return result;
+            //Log.d(LOG_TAG, "AsyncRhymesQuery onPostExecute():  just added results of query "+ result.nr + "( "+result.word +" ) to rhymeResults-Arraylist");
+        }
+        */
+    }
+
+
 
 
 //   SERVICE / ACTIVITY COMMUNICATION

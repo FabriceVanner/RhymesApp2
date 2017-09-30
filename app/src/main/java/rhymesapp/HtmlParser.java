@@ -1,13 +1,17 @@
 package rhymesapp;
 
+import android.webkit.CookieManager;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocketFactory;
+import java.io.*;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -17,41 +21,155 @@ import java.util.List;
 
 /**
  * Created by Fabrice Vanner on 05.01.2017.
- *
+ * <p>
  * intended to be used for finding assossiations
  */
 public class HtmlParser {
 
+    public String getHTMLStringToScrape(HttpURLConnection connection) {
+        StringBuilder sb=null;
+        try {
+            InputStream is = connection.getInputStream();
+            BufferedInputStream inStream = new BufferedInputStream(is, 1024 * 5);
+            BufferedReader br = null;
+            br = new BufferedReader(new InputStreamReader(inStream));
 
-    public List<String> parseWordAssociations()throws IOException{
-        return parseWordAssociationsDotNet();
+             sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line).append('\n');
+            }
+            inStream.close();
+
+        } catch (
+                Exception e)
+
+        {
+            e.printStackTrace();
+        }
+        return sb.toString();
     }
 
-    public List<String> parseWordAssociationsDotNet()throws IOException{
-        String textDelim=" ";
+    private HttpsURLConnection urlConnection;
+    private CookieManager cookieManager;
+
+    public HttpsURLConnection getConnection(String url) throws MalformedURLException {
+        URL request_url = new URL(url);
+        try {
+            //if (!isHttps()) {
+            //    throw new ConnectException("you have to use SSL certifacated url!");
+            //}
+            urlConnection = (HttpsURLConnection) request_url.openConnection();
+            urlConnection.setRequestMethod("POST");
+            urlConnection.setReadTimeout(95 * 1000);
+            urlConnection.setConnectTimeout(95 * 1000);
+            urlConnection.setDoInput(true);
+            urlConnection.setRequestProperty("Accept", "application/json");
+            urlConnection.setRequestProperty("X-Environment", "android");
+
+            /** Cookie Sets... */
+            String cookie = cookieManager.getCookie(urlConnection.getURL().toString());
+            cookieManager = CookieManager.getInstance();
+            if (cookie != null)
+                urlConnection.setRequestProperty("Cookie", cookie);
+
+            List<String> cookieList = urlConnection.getHeaderFields().get("Set-Cookie");
+            if (cookieList != null) {
+                for (String cookieTemp : cookieList) {
+                    cookieManager.setCookie(urlConnection.getURL().toString(), cookieTemp);
+                }
+            }
+            /** Cookie Sets... */
+
+            urlConnection.setHostnameVerifier(new HostnameVerifier() {
+                @Override
+                public boolean verify(String hostname, SSLSession session) {
+                    /** if it necessarry get url verfication */
+                    //return HttpsURLConnection.getDefaultHostnameVerifier().verify("your_domain.com", session);
+                    return true;
+                }
+            });
+            urlConnection.setSSLSocketFactory((SSLSocketFactory) SSLSocketFactory.getDefault());
+
+
+            urlConnection.connect();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return urlConnection;
+    }
+
+
+    public List<String> parseWordAssociations() throws IOException {
+        //Document doc = Jsoup.
         Document doc = Jsoup.connect("https://wordassociations.net/de/assoziationen-mit-dem-wort/Liebe").data("query", "Java").userAgent("Mozilla").cookie("auth", "token").timeout(3000).post();
-       // Element wordscolumn = doc.select("div.wordscolumn").first();
-        Element wordscolumn = doc.getElementsByClass("wordscolumn").first();
-        Element nouns = wordscolumn.select("ul").first();
-        Element adject = wordscolumn.select("ul").get(2);
-        Element verbs = wordscolumn.select("ul").get(3);
-        List<String> nounsList = new ArrayList<>(Arrays.asList(nouns.text().split(textDelim)));
-        List<String> verbsList = new ArrayList<>((Arrays.asList(verbs.text().split(textDelim))));
-        List<String> adjList = new ArrayList<>((Arrays.asList(adject.text().split(textDelim))));
-        nounsList.addAll(verbsList);
-        nounsList.addAll(adjList);
-        return nounsList;
+        return parseWordAssociationsDotNet(doc);
+    }
+
+    public List<String> parseWordAssociationsAndroid(String html) throws IOException {
+        Document doc = Jsoup.parse(html);
+        return parseWordAssociationsDotNet(doc);
     }
 
 
+    public static List<String> parseWordAssociationsDotNet(Document doc) throws IOException {
+        String textDelim = " ";
+        List<String> allList = new ArrayList<String>();
+        // Element wordscolumn = doc.select("div.wordscolumn").first();
+        Elements elements = doc.getElementsByClass("wordscolumn");
+        if(!elements.isEmpty()) {
+            Element wordscolumn = elements.first();
+            //Elements elements = wordscolumn.select("ul");
 
-    public static void main(String[]args) throws IOException {
+
+            Element nouns = wordscolumn.select("ul").first();
+            if (nouns != null) {
+                List<String> nounsList = new ArrayList<>(Arrays.asList(nouns.text().split(textDelim)));
+                allList.addAll(nounsList);
+            }
+
+            Element adjects = null;
+            try {
+                adjects = wordscolumn.select("ul").get(2);
+                if (adjects != null) {
+                    List<String> adjList = new ArrayList<>((Arrays.asList(adjects.text().split(textDelim))));
+                    allList.addAll(adjList);
+                }
+            } catch (IndexOutOfBoundsException e) {
+
+            }
+
+            Element verbs = null;
+            try {
+                verbs = wordscolumn.select("ul").get(3);
+                if (verbs != null) {
+                    List<String> verbsList = new ArrayList<>((Arrays.asList(verbs.text().split(textDelim))));
+                    allList.addAll(verbsList);
+                }
+            } catch (IndexOutOfBoundsException e) {
+
+            }
+
+
+        }
+        return allList;
+    }
+
+
+    public static void main(String[] args) throws IOException {
+
+        //  parseWordAssociations();
+    }
+
+    public static void textToPhoneme() {
 
 
         //Host=tom.brondsted.dk
         //User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0
         //Accept=text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
-   //     Accept-Language=de-AT,en-US;q=0.7,en;q=0.3
+        //     Accept-Language=de-AT,en-US;q=0.7,en;q=0.3
 //Accept-Encoding=gzip, deflate
 //Cookie=PHPSESSID=5cdritf77b4u4dmq3iacra197em2uh4l
 //DNT=1
@@ -61,11 +179,9 @@ public class HtmlParser {
         //Accept=text/css,*/*;q=0.1
 
 
-
-
-    //    Host=tom.brondsted.dk
-     //   User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0
-      //  Accept=text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+        //    Host=tom.brondsted.dk
+        //   User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0
+        //  Accept=text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
 //Accept-Language=de-AT,en-US;q=0.7,en;q=0.3
 //Accept-Encoding=gzip, deflate
 //Referer=http://tom.brondsted.dk/text2phoneme/
@@ -97,7 +213,7 @@ myURLConnection.setDoOutput(true);
          */
 
 
-        String responseString="";
+        String responseString = "";
         try {
             // open a connection to the site
             URL url = new URL("http://tom.brondsted.dk/text2phoneme/transcribeit.php");
@@ -108,7 +224,7 @@ myURLConnection.setDoOutput(true);
             // send your parameters to your site
             //txt=Ikea&language=danish&alphabet=IPA
             String word = "Maus";
-            ps.print("txt="+word);
+            ps.print("txt=" + word);
             ps.print("&language=german");
             ps.print("&alphabet=IPA");
 
@@ -137,7 +253,5 @@ myURLConnection.setDoOutput(true);
         Document doc = Jsoup.parse(responseString);
         Element ipaElement = doc.select("div#maintext").first().select("p.indent").get(1);
         System.out.println(ipaElement.ownText());
-
     }
-
 }

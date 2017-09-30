@@ -16,7 +16,8 @@ import static rhymesapp.RhymesService.context;
 
 /**
  * Created by Fabrice Vanner on 06/04/2017.
- * downloads a file to local app-space --> intended to be ussed for downloading the dictionary from the web after app has been installed from play-store
+ * - downloads a file to local app-space --> intended to be ussed for downloading the dictionary from the web after app has been installed from play-store
+ * - parses
  */
 public class WebIO {
     public static String LOG_TAG = "WebIO";

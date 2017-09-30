@@ -18,7 +18,12 @@ import java.net.URLConnection;
 public class HtmlParser {
 
     public static void main(String[]args) throws IOException {
-        /*
+
+        System.out.println(wordassociations());
+    }
+
+    public static String wordassociations() throws IOException{
+
         Document doc = Jsoup.connect("https://wordassociations.net/de/assoziationen-mit-dem-wort/Liebe").data("query", "Java").userAgent("Mozilla").cookie("auth", "token").timeout(3000).post();
 
        // Element wordscolumn = doc.select("div.wordscolumn").first();
@@ -26,13 +31,14 @@ public class HtmlParser {
         Element nouns = wordscolumn.select("ul").first();
         Element adject = wordscolumn.select("ul").get(2);
         Element verbs = wordscolumn.select("ul").get(3);
-        System.out.println(nouns.text());
-        */
+        String output =nouns.text();
+
+
 
         //Host=tom.brondsted.dk
         //User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0
         //Accept=text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
-   //     Accept-Language=de-AT,en-US;q=0.7,en;q=0.3
+        //     Accept-Language=de-AT,en-US;q=0.7,en;q=0.3
 //Accept-Encoding=gzip, deflate
 //Cookie=PHPSESSID=5cdritf77b4u4dmq3iacra197em2uh4l
 //DNT=1
@@ -44,9 +50,9 @@ public class HtmlParser {
 
 
 
-    //    Host=tom.brondsted.dk
-     //   User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0
-      //  Accept=text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+        //    Host=tom.brondsted.dk
+        //   User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0
+        //  Accept=text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
 //Accept-Language=de-AT,en-US;q=0.7,en;q=0.3
 //Accept-Encoding=gzip, deflate
 //Referer=http://tom.brondsted.dk/text2phoneme/
@@ -76,8 +82,11 @@ myURLConnection.setDoOutput(true);
 
 
          */
+        return output;
+    }
 
 
+    public static String text2phoneme(){
         String responseString="";
         try {
             // open a connection to the site
@@ -118,7 +127,9 @@ myURLConnection.setDoOutput(true);
         Document doc = Jsoup.parse(responseString);
         Element ipaElement = doc.select("div#maintext").first().select("p.indent").get(1);
         System.out.println(ipaElement.ownText());
-
+        return ipaElement.ownText();
     }
+
+
 
 }

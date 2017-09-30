@@ -112,8 +112,7 @@ public class RhymesBaseActivity extends Activity implements AlertDialogCallback<
     }
 
 
-
-    protected void restoreInstanceState(Bundle savedInstanceState){
+    protected void restoreInstanceState(Bundle savedInstanceState) {
         Log.d(LOG_TAG, "restoreInstanceState()");
         /*
 Because the onCreate() method is called whether the system is creating a new instance of your activity or recreating a previous one, you must check whether the state Bundle is null before you attempt to read it. If it is null, then the system is creating a new instance of the activity, instead of restoring a previous one that was destroyed.
@@ -125,7 +124,7 @@ Because the onCreate() method is called whether the system is creating a new ins
             rhymesService.autoRandomSpeedinMS = AUTORANDOMSPEEDINMSDEFAULT;
             textFieldsFontSize = TEXTFIELDSFONTSIZEDEFAULT;
             //   enableWakeLock = enableWakeLockDefault;
-        }else{
+        } else {
             rhymesService.isFreshlyStarted = false;
             enableHashMapPrefetch = (savedInstanceState.getBoolean("enableHashMapPrefetch", ENABLEHASHMAPPREFETCHDEFAULT));
             outputTextView.setText(savedInstanceState.getCharSequence("outputTextViewText"));
@@ -141,8 +140,6 @@ Because the onCreate() method is called whether the system is creating a new ins
         if (hmToggle != null) {
             hmToggle.setChecked(enableHashMapPrefetch);
         }
-
-
 
 
         //TODO http://blog.cindypotvin.com/saving-preferences-in-your-android-application/
@@ -184,7 +181,7 @@ Because the onCreate() method is called whether the system is creating a new ins
         editor.putInt("autoRandomSpeedinMS", rhymesService.autoRandomSpeedinMS);
         editor.putBoolean("enableAutoRandom", rhymesService.enableAutoRandom);
         editor.putInt("textFieldsFontSize", textFieldsFontSize);
-       // editor.putBoolean("loadHashMapPrefetch", enableHashMapPrefetch);
+        // editor.putBoolean("loadHashMapPrefetch", enableHashMapPrefetch);
         editor.commit();
 
     }
@@ -196,10 +193,10 @@ Because the onCreate() method is called whether the system is creating a new ins
 
         rhymesService.autoRandomSpeedinMS = (sharedPreferences.getInt("autoRandomSpeedinMS", AUTORANDOMSPEEDINMSDEFAULT));
         rhymesService.enableAutoRandom = sharedPreferences.getBoolean("enableAutoRandom", false);
-        //TODO: noch kaputt: 
+        //TODO: noch kaputt:
         this.textFieldsFontSize = sharedPreferences.getInt("textFieldsFontSize", TEXTFIELDSFONTSIZEDEFAULT);
         //enableTextToSpeech = sharedPreferences.getBoolean("enableTextToSpeech", enableTextToSpeechDefault);
-    //    enableHashMapPrefetch = sharedPreferences.getBoolean("loadHashMapPrefetch", enableHashMapPrefetchDefault);
+        //    enableHashMapPrefetch = sharedPreferences.getBoolean("loadHashMapPrefetch", enableHashMapPrefetchDefault);
 
 
     }
@@ -218,12 +215,11 @@ Because the onCreate() method is called whether the system is creating a new ins
         guiUtils = GuiUtils.getInstance(context);
 
         this.sharedPreferences = getPreferences(MODE_PRIVATE);
-        if (savedInstanceState ==null) {
+        if (savedInstanceState == null) {
             loadPersistentSettings();
-        } else{
-                restoreInstanceState(savedInstanceState);
-            }
-
+        } else {
+            restoreInstanceState(savedInstanceState);
+        }
 
 
         //   rhymeResults = new Vector<>();
@@ -262,8 +258,8 @@ Because the onCreate() method is called whether the system is creating a new ins
         associationsToggle = (ToggleButton) findViewById(R.id.associationsToggle);
 
         /** enables the automatic rhyme query-function */
-      //  autoRandomToggle = (ToggleButton) findViewById(R.id.autoRandomToggle);
-        play_Pause_ImageButton = (ImageButton)  findViewById(R.id.play_Pause_ImageButton);
+        //  autoRandomToggle = (ToggleButton) findViewById(R.id.autoRandomToggle);
+        play_Pause_ImageButton = (ImageButton) findViewById(R.id.play_Pause_ImageButton);
         /**enables the text to speech synthetic voice output*/
         textToSpeechToggle = (ToggleButton) findViewById(R.id.voiceOutToggle);
 
@@ -418,6 +414,18 @@ Because the onCreate() method is called whether the system is creating a new ins
             }
         });
 
+        associationsToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                //loadHashMapPrefetch = isChecked;
+                if (isChecked) {
+                    rhymesService.scrapeSite(inputTextView.getText().toString());
+                } else {
+
+                }
+            }
+        });
+
 
         voiceRecogButton.setOnTouchListener(new View.OnTouchListener() {
             @Override
@@ -458,12 +466,11 @@ Because the onCreate() method is called whether the system is creating a new ins
         });
 
 
-
         play_Pause_ImageButton.setOnClickListener(new ImageButton.OnClickListener() {
 
             @Override
             public void onClick(View view) {
-                Log.d(LOG_TAG,"play_Pause_ImageButton: onClick():");
+                Log.d(LOG_TAG, "play_Pause_ImageButton: onClick():");
                 rhymesService.toggleAutoRandom();
                 actualizePlayPauseImageButton();
 
@@ -471,7 +478,6 @@ Because the onCreate() method is called whether the system is creating a new ins
 
 
         });
-
 
 
         textToSpeechToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -535,16 +541,15 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
 */
     }
 
-    public void actualizePlayPauseImageButton(){
+    public void actualizePlayPauseImageButton() {
 
 
-        if(rhymesService.enableAutoRandom){
+        if (rhymesService.enableAutoRandom) {
             rhymesBaseActivity.play_Pause_ImageButton.setBackgroundColor(parseColor("#000000"));
-        }else{
+        } else {
             rhymesBaseActivity.play_Pause_ImageButton.setBackgroundColor(parseColor("#d30e63"));
         }
     }
-
 
 
     //todo: autohide:  moveTaskToBack(true);
@@ -554,7 +559,7 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
         // Local Service Binding Communication
 
         super.onRestart();
-      //  onRestoreInstanceState()
+        //  onRestoreInstanceState()
     }
 
     @Override
@@ -595,8 +600,8 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
                 rhymesServiceIsBound = false;
             }
             rhymesService.stopForegroundService();
-        //    Intent intentStopService = new Intent(this, RhymesService.class);
-         //   stopService(intentStopService); // dasselbe wie stopSelf() siehe RhymesService.stopForegroundService
+            //    Intent intentStopService = new Intent(this, RhymesService.class);
+            //   stopService(intentStopService); // dasselbe wie stopSelf() siehe RhymesService.stopForegroundService
 
         }
     }
@@ -620,7 +625,7 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
         // Local Service Binding Communication
         Intent intent = new Intent(this, RhymesService.class);
         //TODO: rhymesServiceIsBound=(vom rückgabewert von bindservice setzen lassen?
-        if(!rhymesServiceIsBound) {
+        if (!rhymesServiceIsBound) {
             bindService(intent, rhymesServiceBindConnection, Context.BIND_AUTO_CREATE);
 
         }
@@ -682,22 +687,25 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
 
     /**
      * broadcasted intent from service gets split to commands
-     *
      */
     private void updateUI(Intent intent) {
         String type = intent.getAction();
         //String type = intent.getStringExtra("TYPE");
         String text = intent.getStringExtra("TEXT");
         //Toast.makeText(this,"updateUI: "+ type+" "+text,Toast.LENGTH_SHORT).show();
-        if(type!= COLOREDOUTPUTTEXTVIEW_ACTION&& type!=INPUTTEXTVIEW_ACTION){
-            Log.d(LOG_TAG, "updateUI(): type = "+type);
+        if (type != COLOREDOUTPUTTEXTVIEW_ACTION && type != INPUTTEXTVIEW_ACTION) {
+            Log.d(LOG_TAG, "updateUI(): type = " + type);
         }
-        if (type == COLOREDOUTPUTTEXTVIEW_ACTION) prepareAndSendColoredTextView(outputTextView, text);
-       // else if (type == "toggleAutoRandomSwitchSetCheckedVisually"){
+
+
+        if (type == COLOREDOUTPUTTEXTVIEW_ACTION) {
+            outputTextView.scrollTo(0, 0);
+            prepareAndSendColoredTextView(outputTextView, text);
+            // else if (type == "toggleAutoRandomSwitchSetCheckedVisually"){
             //autoRandomToggle.setChecked(true);
 
-        //}
-        else if (type == INPUTTEXTVIEW_ACTION) prepareAndSendTextView(inputTextView, text);
+            //}
+        }else if (type == INPUTTEXTVIEW_ACTION) prepareAndSendTextView(inputTextView, text);
         else if (type == TOGGLEPLAY_ACTION)
             Toast.makeText(this, "RhymesBaseActiviy: received toggle Play", Toast.LENGTH_SHORT);
         else if (type == ADDTORHYMERESULTVECTOR_ACTION) {
@@ -718,15 +726,15 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
             outputTextView.scrollTo(0, 0);
             prepareAndSendTextView(outputTextView, text);
             //} else if ( type == "toggleNotification_button_play_image"){
-        }else if (type == TOGGLEAUTORANDOM_ACTION){
-              actualizePlayPauseImageButton();
-     //       rhymesService.mNotificationManager.notify(101,rhymesService.mNotifyBuilder.build());
-       //     findViewById(R.id.notification_button_play)).setImageResource();
-        }else if (type==CLOSEAPP_ACTION) {
+        } else if (type == TOGGLEAUTORANDOM_ACTION) {
+            actualizePlayPauseImageButton();
+            //       rhymesService.mNotificationManager.notify(101,rhymesService.mNotifyBuilder.build());
+            //     findViewById(R.id.notification_button_play)).setImageResource();
+        } else if (type == CLOSEAPP_ACTION) {
             /** TODO: does not work...*/
             finish();
             onDestroy();
-        }else if(type==RANDOMQUERY_ACTION){
+        } else if (type == RANDOMQUERY_ACTION) {
             //TODO: ist etwas umständlich: Notification ruft vom Service über broadcast die activity an damit diese wieder die Methode im Service auslöst
             rhymesService.findRandomWordPair();
 
