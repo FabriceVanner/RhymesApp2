@@ -86,6 +86,11 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content">
         <ToggleButton
+                android:text="ToggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:id="@+id/autoRandomTypeToggle" android:layout_weight="1"
+                android:textOff="T-" android:textOn="T+"/>
+        <ToggleButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:layout_weight="1"
                 android:textOff="@string/v_off"
@@ -113,7 +118,7 @@
 
         <ToggleButton
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:id="@+id/wakeLockToggle" android:layout_weight="1"
+                android:layout_height="wrap_content" android:id="@+id/hardwareButtonsToggle" android:layout_weight="1"
                 android:textOff="@string/wl_off" android:textOn="@string/wl_on"
                 style="@android:style/Widget.DeviceDefault.Button.Toggle"/>
 
@@ -126,10 +131,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/outputSizeBar"
-                android:layout_weight="1"/>
+                android:layout_weight="0.87"/>
         <SeekBar
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:id="@+id/autoRandomSpeedBar" android:layout_weight="1"/>
+                android:layout_height="wrap_content" android:id="@+id/autoRandomSpeedBar" android:layout_weight="1.03"/>
     </LinearLayout>
     <ProgressBar style="?android:attr/progressBarStyleHorizontal" android:id="@+id/progressBar"
                  android:layout_width="match_parent" android:layout_height="30dp" android:paddingLeft="10dp"

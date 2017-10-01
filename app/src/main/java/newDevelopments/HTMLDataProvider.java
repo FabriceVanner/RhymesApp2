@@ -51,11 +51,7 @@ public class HTMLDataProvider {
         }
         String out ="";
         if (stringList!=null) {
-            out = stringList.toString();
-            if(out.length()>4) {
-                out = out.substring(1, out.length() - 1);
-            }
-            out = out.replaceAll(", ","\n");
+            out = insertCRsIntoAssociationSiteQueryResult(stringList);
         }else{
             out ="Association not found or no connection";
         }
@@ -63,6 +59,19 @@ public class HTMLDataProvider {
         return new WordPair(word,out);
     }
 
+    /**
+     * insert Carriage Returns for Display on Gui
+     * @param queryResult
+     * @return
+     */
+    public static String insertCRsIntoAssociationSiteQueryResult(List<String> queryResult){
+        String out = queryResult.toString();
+        if(out.length()>4) {
+            out = out.substring(1, out.length() - 1);
+        }
+        out = out.replaceAll(", ","\n");
+        return out;
+    }
 
 
 

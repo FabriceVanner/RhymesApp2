@@ -28,6 +28,8 @@ import static rhymesapp.Constatics.ACTION.*;
 import static rhymesapp.Constatics.*;
 import static rhymesapp.RhymesBaseActivity.DownloadOrCopyDialog.CANCEL;
 import static rhymesapp.RhymesBaseActivity.DownloadOrCopyDialog.DOWNLOAD;
+import static rhymesapp.RhymesService.AutoRandomType.QUERYWORD;
+import static rhymesapp.RhymesService.AutoRandomType.QUERYWORD_AND_THEN_WITHINQUERYWORDRESULT;
 import static rhymesapp.RhymesService.enableAutoRandom;
 
 
@@ -50,14 +52,16 @@ public class RhymesBaseActivity extends Activity implements AlertDialogCallback<
     private SeekBar textFieldsFontSizeBar;
     private int textFieldsFontSize;
     private SeekBar autoRandomSpeedBar;
+   // private SeekBar linearAutoRandomWordNrBar;
 
     private ToggleButton associationsToggle;
     //private ToggleButton autoRandomToggle;
     private ImageButton play_Pause_AutoRandomQueryImageButton;
     private ToggleButton textToSpeechToggle;
     private ToggleButton hmToggle;
-    private ToggleButton wakeLockToggle;
+    private ToggleButton hardwareButtonsToggle;
     private ToggleButton serviceToggle;
+    private ToggleButton autoRandomTypeToggle;
 
     // CLASS-OBJECTS
     private HelperActivity helper = null;
@@ -246,6 +250,12 @@ Because the onCreate() method is called whether the system is creating a new ins
         autoRandomSpeedBar.setBottom(3000);
         autoRandomSpeedBar.setProgress((int) rhymesService.autoRandomSpeedinMS);
 
+        /*
+        linearAutoRandomWordNrBar = (SeekBar) findViewById(R.id.linearAutoRandomWordNrBar);
+        linearAutoRandomWordNrBar.setMax(20);
+        autoRandomSpeedBar.setBottom(3);
+        autoRandomSpeedBar.setProgress(10);
+*/
         outputTextView = (TextView) findViewById(R.id.outputTextView);
         outputTextView.setTextSize(textFieldsFontSize);
         inputTextView = (EditText) findViewById(R.id.inputText);
@@ -262,9 +272,9 @@ Because the onCreate() method is called whether the system is creating a new ins
         /**enables the text to speech synthetic voice output*/
         textToSpeechToggle = (ToggleButton) findViewById(R.id.voiceOutToggle);
 
-        /** deprecated*/
-        wakeLockToggle = (ToggleButton) findViewById(R.id.wakeLockToggle);
+        hardwareButtonsToggle = (ToggleButton) findViewById(R.id.hardwareButtonsToggle);
         // serviceToggle = (ToggleButton) findViewById(R.id.serviceToggle);
+        autoRandomTypeToggle = (ToggleButton) findViewById(R.id.autoRandomTypeToggle);
 
         /** toggles the on-display keyboard*/
         keysButton = (Button) findViewById(R.id.keys);
@@ -311,7 +321,26 @@ Because the onCreate() method is called whether the system is creating a new ins
             }
 
         });
+/*
 
+        linearAutoRandomWordNrBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                rhymesService.linearAutoRandomWordNr = progress;
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+
+        });
+*/
         keysButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -402,7 +431,7 @@ Because the onCreate() method is called whether the system is creating a new ins
             }
         });
         */
-        wakeLockToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        hardwareButtonsToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 //loadHashMapPrefetch = isChecked;
@@ -481,6 +510,21 @@ Because the onCreate() method is called whether the system is creating a new ins
 
         });
 
+
+
+
+
+        autoRandomTypeToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(isChecked){
+                    rhymesService.autoRandomType= QUERYWORD_AND_THEN_WITHINQUERYWORDRESULT;
+                }else{
+                    rhymesService.autoRandomType= QUERYWORD;
+                }
+
+            }
+        });
 
         textToSpeechToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
