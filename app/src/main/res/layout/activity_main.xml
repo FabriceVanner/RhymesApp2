@@ -155,7 +155,7 @@
                 android:layout_height="match_parent" app:srcCompat="@android:drawable/ic_media_play"
                 android:id="@+id/play_Pause_ImageButton" android:visibility="visible"
                 style="@android:style/Widget.ImageButton" android:background="#d30e63"/>
-        <Button android:id="@+id/randomQueryButton"
+        <Button android:id="@+id/randomRhymeQueryButton"
                 android:text="@string/randText"
                 android:background="#d30e63" android:textColor="@android:color/white"
                 android:layout_weight="1" android:layout_width="100dp" android:layout_height="40dp"/>

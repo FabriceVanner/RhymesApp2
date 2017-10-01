@@ -3,28 +3,72 @@ package newDevelopments;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import rhymesapp.HtmlParser;
+import rhymesapp.WordPair;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Fabrice Vanner on 05.01.2017.
  */
-public class HtmlParser {
+public class HTMLDataProvider {
 
     public static void main(String[]args) throws IOException {
 
         System.out.println(wordassociations());
     }
 
+
+// SCRAPE Association WEBSITE:
+
+    public static WordPair scrapeAssociationSite(String word) {
+        HtmlParser htmlParser = new HtmlParser();
+        List<String> stringList=null;
+        try {
+            //htmlParser.getConnection("https://wordassociations.net/de/assoziationen-mit-dem-wort/Liebe");
+            //connection.setRequestMethod("GET");
+            URL url = new URL("https://wordassociations.net/de/assoziationen-mit-dem-wort/"+word);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            //Emulate the normal desktop
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:55.0) Gecko/20100101 Firefox/55.0");
+            String htmlString = htmlParser.getHTMLStringToScrape(connection);
+            stringList = htmlParser.parseWordAssociationsOnAndroid(htmlString);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            stringList = new ArrayList<>();
+            stringList.add("AsyncAssociationSiteScraper: Error: IOException");
+        }
+        String out ="";
+        if (stringList!=null) {
+            out = stringList.toString();
+            if(out.length()>4) {
+                out = out.substring(1, out.length() - 1);
+            }
+            out = out.replaceAll(", ","\n");
+        }else{
+            out ="Association not found or no connection";
+        }
+
+        return new WordPair(word,out);
+    }
+
+
+
+
     public static String wordassociations() throws IOException{
 
-        Document doc = Jsoup.connect("https://wordassociations.net/de/assoziationen-mit-dem-wort/Liebe").data("query", "Java").userAgent("Mozilla").cookie("auth", "token").timeout(3000).post();
+        Document doc = Jsoup.connect("https://wordassociations.net/de/assoziationen-mit-dem-wort/Liebe").data("queryType", "Java").userAgent("Mozilla").cookie("auth", "token").timeout(3000).post();
 
        // Element wordscolumn = doc.select("div.wordscolumn").first();
         Element wordscolumn = doc.getElementsByClass("wordscolumn").first();

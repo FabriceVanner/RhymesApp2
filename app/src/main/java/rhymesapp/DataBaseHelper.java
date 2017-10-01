@@ -33,7 +33,7 @@ import static rhymesapp.StringsAndStuff.*;
 
 //import static main.java.rhymesApp.IOUtils.*;
 /*
-automated db query time-measures
+automated db QUERYTYPEDEFAULT time-measures
 - 2 table nur mit src-wörtern und als foreign key ids von dem rhyme string eines anderen Tables
 - array list oder hash table key-value mit src-wörtern und (entweder db-index foreign key oder line number einer textfile oder gleich dem jeweiligen Rhyme-string)
 
@@ -77,7 +77,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
 
 
     /**
-     * used for getting random rhymes from database
+     * used for getting random queryResult from database
      */
     private static Random random;
 
@@ -278,7 +278,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
     public void setUpInternalDataBase() throws IOException {
         if (dbFileisLoadable) return ;
 
-        //: TODO open failed: EACCES (Permission denied) at Location /data/user/0/com.rhymesapp/databases/rhymes.db: open failed: EACCES (Permission denied)
+        //: TODO open failed: EACCES (Permission denied) at Location /data/user/0/com.rhymesapp/databases/queryResult.db: open failed: EACCES (Permission denied)
         /*
         getUserPermissions();
         try {
@@ -416,9 +416,9 @@ public class DataBaseHelper extends SQLiteOpenHelper {
     }
 
     /**
-     * checks if db is ready and performs a random rhymes query
+     * checks if db is ready and performs a random queryResult QUERYTYPEDEFAULT
      */
-    public WordRhymesPair getRandWordRhymesPair() {
+    public WordPair getRandWordRhymesPair() {
         if (isDbReadyLoaded()) {
             return getRandomRhymesDirectFromDB();
         } else {
@@ -437,11 +437,11 @@ public class DataBaseHelper extends SQLiteOpenHelper {
     }
 
     /**
-     * performs a random rhymes query
+     * performs a random queryResult QUERYTYPEDEFAULT
      *
      * @return
      */
-    private WordRhymesPair getRandomRhymesDirectFromDB() {
+    private WordPair getRandomRhymesDirectFromDB() {
         if (random == null) {
             random = new Random();
         }
@@ -456,13 +456,13 @@ public class DataBaseHelper extends SQLiteOpenHelper {
 
 
     // Add your public helper methods to access and get content fromIndex the database.
-    // You could return cursors by doing "return myDataBase.query(....)" so it'd be easy
+    // You could return cursors by doing "return myDataBase.QUERYTYPEDEFAULT(....)" so it'd be easy
     // to you to create adapters for your views.
 
 
     /**
-     * queries the rhymes for the given word
-     * decides via the i-var booleans whether to use hashmap first or query the db directly
+     * queries the queryResult for the given word
+     * decides via the i-var booleans whether to use hashmap first or QUERYTYPEDEFAULT the db directly
      *
      * @param word
      * @return
@@ -477,7 +477,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
         } else {
             String mess = "DB or HM not loaded or copied to internal mem yet";
             ioUtils.postToastMessageToGuiThread(mess);
-            Log.e(LOG_TAG, "getRhymes(): " + mess);
+            Log.e(LOG_TAG, "getResultWords(): " + mess);
             return "";
         }
     }
@@ -499,7 +499,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
 
 
         //  getTableNames();
-        // Cursor cursor = myDataBase.query(MySQLiteHelper.TABLE_WORDS,
+        // Cursor cursor = myDataBase.QUERYTYPEDEFAULT(MySQLiteHelper.TABLE_WORDS,
         //        allColumns, null, null, null, null, null);
         // while (!cursor.isAfterLast()) {
         //!cursor.isAfterLast()
@@ -508,7 +508,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
         //}
         // make sure to close the cursor
 
-        String rhymes = getStringFromCursor(cursor).getRhymes();
+        String rhymes = getStringFromCursor(cursor).getResultWords();
         if (ignoreCase && rhymes.equals("")) {
             Log.v(LOG_TAG, "...trying other case of " + word);
             String newWord;
@@ -519,7 +519,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
             }
             newWord = newWord.replaceAll("'", "''");
             cursor = myDataBase.query(TABLE_WORDS, rhymeColumn, Constatics.COLUMN_WORD + " " + sqlComparator + " " + "'" + newWord + "' ;", null, null, null, null, null);
-            rhymes = getStringFromCursor(cursor).getRhymes();
+            rhymes = getStringFromCursor(cursor).getResultWords();
         }
         String msg;
         if (rhymes == "") {
@@ -540,7 +540,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
      * @param cursor
      * @return
      */
-    private WordRhymesPair getStringFromCursor(Cursor cursor) {
+    private WordPair getStringFromCursor(Cursor cursor) {
         String rhymes = "";
         String word = "";
         cursor.moveToFirst();
@@ -556,7 +556,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
 
 
         cursor.close();
-        return new WordRhymesPair(word, rhymes);
+        return new WordPair(word, rhymes);
     }
 
 
@@ -596,7 +596,7 @@ public class DataBaseHelper extends SQLiteOpenHelper {
         index = getWordIndexHashMap().get(newWord);
         String[] rhymeColumn = new String[]{Constatics.COLUMN_WORD, Constatics.COLUMN_RHYMES};
         Cursor cursor = myDataBase.query(TABLE_WORDS, rhymeColumn, Constatics.COLUMN_ID + "=" + index, null, null, null, null, null);
-        String rhymes = getStringFromCursor(cursor).getRhymes();
+        String rhymes = getStringFromCursor(cursor).getResultWords();
 
         if (rhymes == "") {
             String mess = "Not in DB: " + word;

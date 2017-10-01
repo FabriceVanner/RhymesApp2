@@ -81,10 +81,12 @@ public class Constatics {
 
 
     /* GUI SETTINGS: DEFFAULT */
+    static final RhymesService.QueryType QUERYTYPEDEFAULT = RhymesService.QueryType.RHYME;
     static final boolean ENABLETEXTTOSPEECHDEFAULT = false;
     static final int AUTORANDOMSPEEDINMSDEFAULT = 6000;
     static final boolean ENABLEWAKELOCKDEFAULT = false;
     static final int TEXTFIELDSFONTSIZEDEFAULT =26;
+
 
     /** SINGLETONS*/
     public static IOUtils IOUtils;
@@ -149,7 +151,7 @@ public interface ACTION {
     public static String SHOWDOWNLOADDIALOG_ACTION = "rhymesapp.action.showdownloaddialog";
     public static String OUTPUTTEXTVIEW_ACTION = "rhymesapp.action.outputtextview";
     public static String CLOSEAPP_ACTION = "rhymesapp.action.closeapp";
-    public static String TOGGLEAUTORANDOM_ACTION = "rhymesapp.action.toggleautorandom";
+    public static String UPDATEAUTORANDOMBUTTON_ACTION = "rhymesapp.action.toggleautorandom";
     public static String RANDOMQUERY_ACTION = "rhymesapp.action.randomquery";
 }
 
@@ -177,7 +179,7 @@ Activity Circle: Objects wie Databasehelper als Serializable oder bundle saven?
  Zeit messung - automat. querytest
  reime als serialized string array ( binary in db) ablegen lässt sich danach evtl einfacher im display darstellen
  Output Field in zwei Columns teilen
- output field bei erneuter query wieder nach oben setzen
+ output field bei erneuter QUERYTYPEDEFAULT wieder nach oben setzen
  zoom listener auf outputfield  http://blog.stevepark.org/2012/06/android-java-code-for-pinch-zoom-event.html
  fuzzy-search sqlite LIKE und in Hashmap?
 

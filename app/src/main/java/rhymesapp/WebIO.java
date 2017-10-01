@@ -33,7 +33,7 @@ public class WebIO {
     }
 
     //PARALLEL THREADS:
-    //new AsyncRhymesQuery().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,new AsynchRhymesQueryParamWrapper(i+1,words.get(i)));
+    //new AsyncRhymesQuery().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,new AsynchWordQueryParamWrapper(i+1,words.get(i)));
 
 
     private static class AsyncHTTPDownloadTask extends AsyncTask<String, String, Boolean> {

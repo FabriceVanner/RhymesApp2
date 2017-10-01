@@ -36,7 +36,7 @@ public class GuiTests {
 
     @Test
     public void backButtonReswitchToApp() {
-        onView(withId(R.id.randomQueryButton))
+        onView(withId(R.id.randomRhymeQueryButton))
                 .perform(click());
         /*
         onView(withId(R.id.greet_button))

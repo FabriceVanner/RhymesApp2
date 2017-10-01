@@ -22,13 +22,11 @@ import android.widget.Toast;
 import com.rhymesapp.R;
 
 import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Vector;
 
+import static newDevelopments.HTMLDataProvider.scrapeAssociationSite;
 import static rhymesapp.Constatics.ACTION.*;
 import static rhymesapp.StringsAndStuff.ERR_NOT_OPEN_DB;
 //http://codetheory.in/understanding-android-started-bound-services/
@@ -217,7 +215,9 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         startForeground(Constatics.NOTIFICATION_ID.FOREGROUND_SERVICE, foregroundServiceNotification);
         IS_FOREGROUND_SERVICE_RUNNING = true;
         //  startForeground(1,foregroundServiceNotification); http://stackoverflow.com/questions/8725909/startforeground-does-not-show-my-notification
-        checkAndEventuallyStartOrStopAutoRandom();
+
+            checkLastInstanceStateAndEventuallyStartOrStopAutoRandom();
+
     }
 
 
@@ -271,21 +271,22 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         return START_STICKY;
     }
 
-    public void checkAndEventuallyStartOrStopAutoRandom() {
-        Log.d(LOG_TAG, "checkAndEventuallyStartOrStopAutoRandom()");
-        if (enableAutoRandom) {
-            startTimerHandler();
-            mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play, android.R.drawable.ic_media_pause);
-        } else {
-            stopTimerHandler();
-            mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play, android.R.drawable.ic_media_play);
-        }
-        mNotificationManager.notify(101, mNotifyBuilder.build());
-        //// Local Service Binding Communication
-        //if (rhymesServiceIsBound) {
+    public void checkLastInstanceStateAndEventuallyStartOrStopAutoRandom() {
+        Log.d(LOG_TAG, "checkLastInstanceStateAndEventuallyStartOrStopAutoRandom()");
+        if(isDbReadyLoaded()) {
+            if (enableAutoRandom) {
+                startTimerHandler();
+                mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play, android.R.drawable.ic_media_pause);
+            } else {
+                stopTimerHandler();
+                mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play, android.R.drawable.ic_media_play);
+            }
 
-        // Call a method from the LocalService.                // However, if this call were something that might hang, then this request should                // occur in a separate thread to avoid slowing down the activity performance.
-        //}
+            //// Local Service Binding Communication
+            //if (rhymesServiceIsBound) {
+
+            // Call a method from the LocalService.                // However, if this call were something that might hang, then this request should                // occur in a separate thread to avoid slowing down the activity performance.
+            //}
                 /*
                 Intent buttonPlayIntent = new Intent(context, RhymesService.NotificationPlayButtonHandler.class);
                 PendingIntent buttonPlayPendingIntent;
@@ -303,12 +304,21 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
                     e.printStackTrace();
                 }
                 */
+        }else{
+            if (enableAutoRandom){
+                Log.d(LOG_TAG, "Autorandom is true; but can't init or load Database: switching autorandom off");
+                enableAutoRandom = false;
+                mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play, android.R.drawable.ic_media_play);
+                rhymesService.broadcastCommandToBaseActivity(UPDATEAUTORANDOMBUTTON_ACTION, "");
+            }
+        }
+        mNotificationManager.notify(101, mNotifyBuilder.build());
     }
 
     public void toggleAutoRandom() {
         Log.d(LOG_TAG, "toggleAutoRandom()");
         enableAutoRandom = !enableAutoRandom;
-        checkAndEventuallyStartOrStopAutoRandom();
+        checkLastInstanceStateAndEventuallyStartOrStopAutoRandom();
 
     }
 
@@ -330,8 +340,8 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
             //rhymesService.toggleTimerHandler();
             // making sure that both are on synch ?!            rhymesService.enableTextToSpeech = rhymesService.enableAutoRandom;
             rhymesService.toggleAutoRandom();
-            rhymesService.broadcastCommandToBaseActivity(TOGGLEAUTORANDOM_ACTION, "");
-            //rhymesService.broadcastCommandToBaseActivity(TOGGLEAUTORANDOM_ACTION,"");
+            rhymesService.broadcastCommandToBaseActivity(UPDATEAUTORANDOMBUTTON_ACTION, "");
+            //rhymesService.broadcastCommandToBaseActivity(UPDATEAUTORANDOMBUTTON_ACTION,"");
         }
     }
 
@@ -376,6 +386,9 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
 
 // QUERIES
 
+    public enum QueryType {RHYME, ASSOCIATION};
+    public QueryType queryType = Constatics.QUERYTYPEDEFAULT;
+
     private String runRhymesQuery(String word) {
         if (word == null || word.length() == 0) {
             Log.v(LOG_TAG, "runRhymesQuery: word == null or == \"\" ");
@@ -384,8 +397,8 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         String rhymes = "";
         rhymes = dataBaseHelper.getRhymes(word);
 
-        //  rhymes.replaceAll("\\\\n",System.getProperty("line.separator"));
-        //rhymes=rhymes.replaceAll("\\n","\n");
+        //  queryResult.replaceAll("\\\\n",System.getProperty("line.separator"));
+        //queryResult=queryResult.replaceAll("\\n","\n");
         return rhymes;//+\\\n sdfsdfsdf";
     }
 
@@ -394,12 +407,12 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
      *
      * @param words
      */
-    public void asyncRhymesQuery(ArrayList<String> words) {
+    public void asyncWordQuery(ArrayList<String> words) {
         for (int i = 0; i < words.size(); i++) {
-            //String match = words.get(i); rhymes = runRhymesQuery(match);
-            new AsyncRhymesQuery().execute(new AsynchRhymesQueryParamWrapper(i + 1, words.get(i)));
+            //String match = words.get(i); queryResult = runRhymesQuery(match);
+            new AsyncWordQuery().execute(new AsynchWordQueryParamWrapper(i + 1, words.get(i), QueryType.RHYME));
             //PARALLEL THREADS:
-            //new AsyncRhymesQuery().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,new AsynchRhymesQueryParamWrapper(i+1,words.get(i)));
+            //new AsyncWordQuery().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,new AsynchWordQueryParamWrapper(i+1,words.get(i)));
         }
     }
 
@@ -408,50 +421,50 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
      * <p>
      * fills rhymeResult-array. when finishhed sets display
      */
-    private class AsyncRhymesQuery extends AsyncTask<AsynchRhymesQueryParamWrapper, Void, AsynchRhymesQueryParamWrapper> {
+    private class AsyncWordQuery extends AsyncTask<AsynchWordQueryParamWrapper, Void, AsynchWordQueryParamWrapper> {
         @Override
-        protected AsynchRhymesQueryParamWrapper doInBackground(AsynchRhymesQueryParamWrapper... query) {
-            Log.d(LOG_TAG, "AsyncRhymesQuery doInBackground(): just run rhymes query with Nr.: " + query[0].nr + " and word " + query[0].word);
-            query[0].rhymes = runRhymesQuery(query[0].word);
+        protected AsynchWordQueryParamWrapper doInBackground(AsynchWordQueryParamWrapper... query) {
+            Log.d(LOG_TAG, "AsyncWordQuery doInBackground(): just run queryResult QUERYTYPEDEFAULT with Nr.: " + query[0].nr + " and word " + query[0].word);
+            query[0].queryResult = runRhymesQuery(query[0].word);
             return query[0];
         }
 
         @Override
-        protected void onPostExecute(AsynchRhymesQueryParamWrapper result) {
-            //rhymeResults.add(result.rhymes);
+        protected void onPostExecute(AsynchWordQueryParamWrapper result) {
+            //rhymeResults.add(result.queryResult);
             if (result.nr == 1) {
-                broadcastCommandToBaseActivity(COLOREDOUTPUTTEXTVIEW_ACTION, result.rhymes);
+                broadcastCommandToBaseActivity(COLOREDOUTPUTTEXTVIEW_ACTION, result.queryResult);
             }
-            //broadcastCommandToBaseActivity("addToRhymeResultVector", result.rhymes);
-            rhymeResults.add(result.rhymes);
-            Log.d(LOG_TAG, "AsyncRhymesQuery onPostExecute():  just added results of query " + result.nr + "( " + result.word + " ) to rhymeResults-Arraylist");
+            //broadcastCommandToBaseActivity("addToRhymeResultVector", result.queryResult);
+            rhymeResults.add(result.queryResult);
+            Log.d(LOG_TAG, "AsyncWordQuery onPostExecute():  just added results of QUERYTYPEDEFAULT " + result.nr + "( " + result.word + " ) to rhymeResults-Arraylist");
         }
     }
 
-    private class AsyncRandomRhymesQuery extends AsyncTask<Integer, Void, rhymesapp.WordRhymesPair> {
+    //TODO: ACHTUNG : 01.10.17 habe Integer auf QueryType geändert
+    private class AsyncRandomWordQuery extends AsyncTask<QueryType, Void, WordPair> {
         @Override
-        protected rhymesapp.WordRhymesPair doInBackground(Integer... query) {
-            // Log.d(LOG_TAG, "AsyncRhymesQuery doInBackground(): just run rhymes query with Nr.: "+query[0].nr + " and word "+query[0].word  );
-            return dataBaseHelper.getRandWordRhymesPair();
-
+        protected WordPair doInBackground(QueryType... queryType) {
+            // Log.d(LOG_TAG, "AsyncWordQuery doInBackground(): just run queryResult QUERYTYPEDEFAULT with Nr.: "+QUERYTYPEDEFAULT[0].nr + " and word "+QUERYTYPEDEFAULT[0].word  );
+            if (queryType[0]==QueryType.RHYME){
+                return dataBaseHelper.getRandWordRhymesPair();
+            }else {
+                //TODO: not really effective: gets Rhymes of rhymes-Database just to use the random word + random rhymesdatabase-words not necessarily exist in association-website-databsase
+                String word = dataBaseHelper.getRandWordRhymesPair().getWord();
+                return scrapeAssociationSite(word);
+            }
         }
-        /*
         @Override
-        protected void onProgressUpdate(Integer... integers){
+        protected void onPostExecute(WordPair wordPair) {
+            super.onPostExecute(wordPair);
+            //    randomRhymesQuery = wordPair;
+            showRandomWordPair(wordPair);
 
-        }
-        */
-
-        @Override
-        protected void onPostExecute(rhymesapp.WordRhymesPair wordRhymesPair) {
-            super.onPostExecute(wordRhymesPair);
-            //    randomRhymesQuery = wordRhymesPair;
-            showRandomWordRhymesPair(wordRhymesPair);
             //todo: http://stackoverflow.com/questions/14885368/update-text-of-notification-not-entire-notification
 
-            //mNotifyBuilder.setContentText(wordRhymesPair.getWord());
+            //mNotifyBuilder.setContentText(wordPair.getWord());
             mNotifyBuilder.mNotification.contentView.setTextColor(R.id.notification_text_artist, guiUtils.getRandomColor());
-            mNotifyBuilder.mNotification.contentView.setTextViewText(R.id.notification_text_artist, wordRhymesPair.getWord());
+            mNotifyBuilder.mNotification.contentView.setTextViewText(R.id.notification_text_artist, wordPair.getWord());
             mNotificationManager.notify(101, mNotifyBuilder.build());
 
             if (enableTextToSpeech) {
@@ -459,17 +472,19 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
                     loadTextToSpeech();
                     onInit(TextToSpeech.SUCCESS);
                 }
-                speak(wordRhymesPair.getWord());
+                speak(wordPair.getWord());
             }
         }
         /*
         @Override
-        protected WordRhymesPair onPostExecute(WordRhymesPair result) {
+        protected WordPair onPostExecute(WordPair result) {
             return result;
-            //Log.d(LOG_TAG, "AsyncRhymesQuery onPostExecute():  just added results of query "+ result.nr + "( "+result.word +" ) to rhymeResults-Arraylist");
+            //Log.d(LOG_TAG, "AsyncWordQuery onPostExecute():  just added results of QUERYTYPEDEFAULT "+ result.nr + "( "+result.word +" ) to rhymeResults-Arraylist");
         }
         */
     }
+
+// DB Database
 
     public boolean isDbReadyLoaded() {
         return dataBaseHelper.isDbReadyLoaded();
@@ -491,6 +506,9 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         //myDbHelper.getTableNames();
     }
 
+
+
+
     protected void exceptionsToErrormessages(Exception ioe) {
         String mess = "";
         if (ioe.getCause() != null) {
@@ -503,24 +521,26 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         return;
     }
 
-
 // AUTO RANDOM FUNCTION:
-
     private static Handler timerHandler = new Handler();
     public static int autoRandomSpeedinMS = 4000;
     public static boolean enableAutoRandom = false;
     private Runnable timerRunnable = new Runnable() {
         @Override
         public void run() {
-            findRandomWordPair();
+                randomQuery();
             timerHandler.postDelayed(this, autoRandomSpeedinMS);
         }
     };
 
-    public void findRandomWordPair() {
-
-        //Toast.makeText(context, "findRandomWordPair()", Toast.LENGTH_SHORT).show();
-        new AsyncRandomRhymesQuery().execute(0);
+    public void randomQuery() {
+        if(isDbReadyLoaded()) {
+            //Toast.makeText(context, "randomQuery()", Toast.LENGTH_SHORT).show();
+            new AsyncRandomWordQuery().execute(this.queryType);
+        }else{
+            Log.d(LOG_TAG, "randomQuery(): Cant't query: db is not ready loaded");
+            Toast.makeText(context, "Cant't query: db is not ready loaded", Toast.LENGTH_SHORT).show();
+        }
     }
 
     /**
@@ -546,68 +566,6 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     }
 
 
-
-// SCRAPE WEBSITE:
-
-    public void scrapeSite(String word){
-        if(word!="")new AsyncAssociationSiteScraper().execute(word);
-        else{
-
-        }
-    }
-
-    /**
-     *
-     */
-    private class AsyncAssociationSiteScraper extends AsyncTask<String, Void, List<String>> {
-        @Override
-        protected List<String> doInBackground(String... query) {
-            HtmlParser htmlParser = new HtmlParser();
-            List<String> stringList=null;
-            try {
-                //htmlParser.getConnection("https://wordassociations.net/de/assoziationen-mit-dem-wort/Liebe");
-                //connection.setRequestMethod("GET");
-                URL url = new URL("https://wordassociations.net/de/assoziationen-mit-dem-wort/"+query[0]);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                connection.setRequestMethod("GET");
-            //Emulate the normal desktop
-                connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:55.0) Gecko/20100101 Firefox/55.0");
-                String htmlString = htmlParser.getHTMLStringToScrape(connection);
-                stringList = htmlParser.parseWordAssociationsAndroid(htmlString);
-
-            } catch (IOException e) {
-                e.printStackTrace();
-                stringList = new ArrayList<>();
-                stringList.add("AsyncAssociationSiteScraper: Error: IOException");
-            }
-            return stringList;
-
-        }
-
-
-        @Override
-        protected void onPostExecute(List<String> stringList) {
-            super.onPostExecute(stringList);
-            String out ="";
-            if (stringList!=null) {
-                out = stringList.toString();
-                if(out.length()>4) {
-                    out = out.substring(2, out.length() - 1);
-                }
-                out = out.replaceAll(", ","\n");
-            }else{
-                out ="Association not found or no connection";
-            }
-            broadcastCommandToBaseActivity(COLOREDOUTPUTTEXTVIEW_ACTION, out);
-        }
-        /*
-        @Override
-        protected WordRhymesPair onPostExecute(WordRhymesPair result) {
-            return result;
-            //Log.d(LOG_TAG, "AsyncRhymesQuery onPostExecute():  just added results of query "+ result.nr + "( "+result.word +" ) to rhymeResults-Arraylist");
-        }
-        */
-    }
 
 
 
@@ -651,10 +609,10 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         */
     }
 
-    private void showRandomWordRhymesPair(WordRhymesPair wordRhymesPair) {
+    private void showRandomWordPair(WordPair wordRhymesPair) {
         if (wordRhymesPair == null) return;
         broadcastCommandToBaseActivity(INPUTTEXTVIEW_ACTION, wordRhymesPair.getWord());
-        broadcastCommandToBaseActivity(COLOREDOUTPUTTEXTVIEW_ACTION, wordRhymesPair.getRhymes());
+        broadcastCommandToBaseActivity(COLOREDOUTPUTTEXTVIEW_ACTION, wordRhymesPair.getResultWords());
     }
 
 
@@ -844,9 +802,9 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         //emptyRhymeResultsArray();
         broadcastCommandToBaseActivity(EMPTYRHYMERESULTSVECTOR_ACTION, "");
 
-        asyncRhymesQuery(voiceRecogSpeechMatches);
+        asyncWordQuery(voiceRecogSpeechMatches);
         //System.getProperty("line.separator"));  stringVar.replaceAll("\\\\n", "\\\n"); make sure your \n is in "\n" for it to work.
-        //prepareAndSendTextView(rhymes);
+        //prepareAndSendTextView(queryResult);
     }
 
 

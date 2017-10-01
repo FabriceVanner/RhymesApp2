@@ -135,7 +135,7 @@ public class GuiUtils {
      * TODO: still buggy of by one etc.
      *
      * @param textView
-     * @param wordsStr rhymes string out of local db
+     * @param wordsStr queryResult string out of local db
      */
     public void setClickableWordsInTextView(TextView textView, String wordsStr, ArrayList<Integer> indexes) {
         SpannableString ss = new SpannableString(wordsStr);
