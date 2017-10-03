@@ -1,6 +1,8 @@
 package rhymesapp;
 
 import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
@@ -22,6 +24,27 @@ import java.text.DecimalFormat;
  */
 public class InternetSpeed {
 
+
+    private static InternetSpeed internetSpeedSingleton;
+
+    public static synchronized InternetSpeed getInstance(Context context) {
+        // Use the application context, which will ensure that you
+        // don't accidentally leak an Activity's context.
+        // See this article for more information: http://bit.ly/6LRzfx
+        if (internetSpeedSingleton == null) {
+            internetSpeedSingleton = new InternetSpeed(context.getApplicationContext());
+        }
+        return internetSpeedSingleton;
+    }
+
+
+
+    public boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager
+                = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+    }
 
     Context context;
 

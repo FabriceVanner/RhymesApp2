@@ -28,8 +28,9 @@ import java.util.Vector;
 
 import static newDevelopments.HTMLDataProvider.scrapeAssociationSite;
 import static rhymesapp.Constatics.ACTION.*;
-import static rhymesapp.RhymesService.AutoRandomType.QUERYWORD;
-import static rhymesapp.RhymesService.AutoRandomType.QUERYWORD_AND_THEN_WITHINQUERYWORDRESULT;
+import static rhymesapp.Constatics.AUTORANDOMQUERYTYPEDEFAULT;
+import static rhymesapp.RhymesService.AutoRandomQueryType.QUERY;
+import static rhymesapp.RhymesService.AutoRandomQueryType.QUERY_AND_ITERATE_RESULT;
 import static rhymesapp.StringsAndStuff.ERR_NOT_OPEN_DB;
 //http://codetheory.in/understanding-android-started-bound-services/
 
@@ -50,7 +51,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     // CLASS OBJECTS
     public DataBaseHelper dataBaseHelper;
     private GuiUtils guiUtils;
-
+    public InternetSpeed internetSpeed;
     // options
     private boolean enableSpeechRecognition = true;
 
@@ -73,6 +74,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         //DataBaseHelper.getInstance(rhymesBaseActivity.getApplicationContext());
         dataBaseHelper = DataBaseHelper.getInstance(getApplicationContext(), this);
         guiUtils = GuiUtils.getInstance(getApplicationContext());
+        internetSpeed = InternetSpeed.getInstance(getApplicationContext());
         initDataProvider();
         rhymeResults = new Vector<>();
 
@@ -231,8 +233,6 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
      * This is the method that can be called to update the Notification
      */
     private void updateNotification() {
-
-
         //foregroundServiceNotification.
         //     findViewById(R.id.notification_button_play)).setImageResource();
         mNotificationManager.notify(101, foregroundServiceNotification);
@@ -277,35 +277,12 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         Log.d(LOG_TAG, "checkLastInstanceStateAndEventuallyStartOrStopAutoRandom()");
         if (isDbReadyLoaded()) {
             if (enableAutoRandom) {
-                runTimerHandler1();
+                runRandomQueryTimerHandler();
                 mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play, android.R.drawable.ic_media_pause);
             } else {
-                stopTimerHandler();
+                stopRandomQueryTimerHandler();
                 mNotifyBuilder.mNotification.contentView.setImageViewResource(R.id.notification_button_play, android.R.drawable.ic_media_play);
             }
-
-            //// Local Service Binding Communication
-            //if (rhymesServiceIsBound) {
-
-            // Call a method from the LocalService.                // However, if this call were something that might hang, then this request should                // occur in a separate thread to avoid slowing down the activity performance.
-            //}
-                /*
-                Intent buttonPlayIntent = new Intent(context, RhymesService.NotificationPlayButtonHandler.class);
-                PendingIntent buttonPlayPendingIntent;
-                    //for intent broadcast to service
-                    buttonPlayIntent.putExtra("action", "togglePlay");
-
-                buttonPlayPendingIntent = pendingIntent.getBroadcast(context, 0, buttonPlayIntent, 0);
-                */
-                /*
-                //for intent broadcast to service
-                try {
-                    // Perform the operation associated with our pendingIntent
-                    buttonPlayPendingIntent.send();
-                } catch (PendingIntent.CanceledException e) {
-                    e.printStackTrace();
-                }
-                */
         } else {
             if (enableAutoRandom) {
                 Log.d(LOG_TAG, "Autorandom is true; but can't init or load Database: switching autorandom off");
@@ -332,18 +309,9 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         public void onReceive(Context context, Intent intent) {
             Log.d(LOG_TAG, "RhymesService: NotificationPlayButtonHandler: onReceive():");
             String action = intent.getStringExtra("action");
-            // Toast.makeText(context, "Play Clicked " + action, Toast.LENGTH_SHORT).show();
-            //rhymesService.broadcastCommandToBaseActivity("toggleNotification_button_play_image","");
-            //foregroundServiceNotification
-
-            //mNotifyBuilder.mNotification.contentView.setTextViewText(R.id.notification_text_artist,wordRhymesPair.getWord());
-            //mNotificationManager.notify(101,mNotifyBuilder.build());
-
-            //rhymesService.toggleTimerHandler();
             // making sure that both are on synch ?!            rhymesService.enableTextToSpeech = rhymesService.enableAutoRandom;
             rhymesService.toggleAutoRandom();
             rhymesService.broadcastCommandToBaseActivity(UPDATEAUTORANDOMBUTTON_ACTION, "");
-            //rhymesService.broadcastCommandToBaseActivity(UPDATEAUTORANDOMBUTTON_ACTION,"");
         }
     }
 
@@ -354,7 +322,6 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         @Override
         public void onReceive(Context context, Intent intent) {
             rhymesService.broadcastCommandToBaseActivity(RANDOMQUERY_ACTION, "");
-            Toast.makeText(context, "Next Clicked", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -364,7 +331,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     public static class NotificationPrevButtonHandler extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            Toast.makeText(context, "Previous Clicked", Toast.LENGTH_SHORT).show();
+            rhymesService.resendLastQueryToGUI();
         }
     }
 
@@ -389,9 +356,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
 // QUERIES
 
     public enum QueryType {RHYME, ASSOCIATION}
-
-    ;
-    public QueryType queryType = Constatics.QUERYTYPEDEFAULT;
+    public static QueryType queryType = Constatics.QUERYTYPEDEFAULT;
 
     private String runRhymesQuery(String word) {
         if (word == null || word.length() == 0) {
@@ -421,7 +386,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     }
 
     /**
-     * Task used to run the rhyme-queries in background
+     * Task used to run several  rhyme-queries in background
      * <p>
      * fills rhymeResult-array. when finishhed sets display
      */
@@ -448,7 +413,11 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
 
     private boolean asyncRandomWordQueryisRunning = false;
 
-    //TODO: ACHTUNG : 01.10.17 habe Integer auf QueryType geändert
+    /**
+     * Randomly Queries WHETHER the phonetic rhymes Database OR the associations-Site
+     * ID QUERY sends Result to GUI
+     * IF QUERY_AND_ITERATE_RESULT iterates through the result, and sends each line seperately to GUI
+     */
     private class AsyncRandomWordQuery extends AsyncTask<QueryType, Void, WordPair> {
         @Override
         protected WordPair doInBackground(QueryType... queryType) {
@@ -457,46 +426,49 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
             // Log.d(LOG_TAG, "AsyncWordQuery doInBackground(): just run queryResult QUERYTYPEDEFAULT with Nr.: "+QUERYTYPEDEFAULT[0].nr + " and word "+QUERYTYPEDEFAULT[0].word  );
             if (queryType[0] == QueryType.RHYME) {
                 return dataBaseHelper.getRandWordRhymesPair();
-            } else if (queryType[0] == QueryType.ASSOCIATION) {
 
+            } else if (queryType[0] == QueryType.ASSOCIATION) {
+                if(!internetSpeed.isNetworkAvailable()){
+                    //TODO: wie toast rausschicken? Toast.makeText(rhymesService,"No Network available ",Toast.LENGTH_SHORT).show();
+
+                    return null;
+                }
                 //TODO: not really effective: gets Rhymes of rhymes-Database just to use the random word + random rhymesdatabase-words not necessarily exist in association-website-databsase
                 String word = dataBaseHelper.getRandWordRhymesPair().getWord();
                 return scrapeAssociationSite(word);
             }
 
-
-            //TODO: REMOVE if extended:
             return dataBaseHelper.getRandWordRhymesPair();
         }
 
         @Override
         protected void onPostExecute(WordPair wordPair) {
             super.onPostExecute(wordPair);
-            //    randomRhymesQuery = wordPair;
+            if(wordPair==null){
+                asyncRandomWordQueryisRunning = false;
+                return;
+            }
+            if(lastQueryCount==1){
+                lastQuery = wordPair;
+                lastQueryCount=0;
+            }else{
+                lastQueryCount++;
+            }
+
             Log.d(LOG_TAG, "AsyncWordQuery: OnPostExecute(): " + wordPair.getWord());
-            if (autoRandomType == QUERYWORD) {
+            if (autoRandomQueryType == QUERY) {
                 outputResultToUser(wordPair);
-            } else if (autoRandomType == QUERYWORD_AND_THEN_WITHINQUERYWORDRESULT) {
-                stopTimerHandler();
+            } else if (autoRandomQueryType == QUERY_AND_ITERATE_RESULT) {
+                stopRandomQueryTimerHandler();
                 outputResultToUser(wordPair);
                 String resultWords = wordPair.getResultWords();
-
-
-                randomLinearQueryResultWordList = resultWords.split("\n");
-                randomLinearQueryResultWordPair = wordPair;
-
-                runTimerHandler2();
+                queryResultIterationWordList = resultWords.split("\n");
+                queryResultIterationWordPair = wordPair;
+                runVerticalQueryTimerHandler();
             }
             asyncRandomWordQueryisRunning = false;
-        }
 
-        /*
-        @Override
-        protected WordPair onPostExecute(WordPair result) {
-            return result;
-            //Log.d(LOG_TAG, "AsyncWordQuery onPostExecute():  just added results of QUERYTYPEDEFAULT "+ result.nr + "( "+result.word +" ) to rhymeResults-Arraylist");
         }
-        */
     }
 
     private void outputResultToUser(WordPair wordPair) {
@@ -515,7 +487,6 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         speak(word);
     }
 
-
     private void sendRandomColoredWordToNotificationTextfield(String word) {
         //todo: http://stackoverflow.com/questions/14885368/update-text-of-notification-not-entire-notification
 
@@ -525,6 +496,23 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         mNotificationManager.notify(101, mNotifyBuilder.build());
     }
 
+    //WordPair newestQuery;
+    WordPair lastQuery;
+    int lastQueryCount=0;
+    /**
+     * stops autoRandom
+     * and does what it says
+     */
+    private void resendLastQueryToGUI(){
+        //stopRandomQueryTimerHandler();
+        enableAutoRandom = false;
+        checkLastInstanceStateAndEventuallyStartOrStopAutoRandom();
+        //stopVerticalQueryTimerHandler();
+        boolean temp = enableTextToSpeech;
+        enableTextToSpeech = false;
+        outputResultToUser(lastQuery);
+        enableTextToSpeech = temp;
+    }
 
 // DB Database
 
@@ -562,21 +550,21 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     }
 
     // AUTO RANDOM FUNCTION:
-    private static Handler timerHandler = new Handler();
-    private static Handler timerHandler2 = new Handler();
+    private static Handler randomQueryTimerHandler = new Handler();
+    private static Handler verticalQueryTimerHandler = new Handler();
     public static int autoRandomSpeedinMS = 4000;
     public static boolean enableAutoRandom = false;
     public static boolean enableAutoRandom_LinearWithinQueryResults = false;
 
     /**
-     * QUERYWORD = automatically randomquery through the possible key-words of rhymes database
-     * QUERYWORD_AND_THEN_WITHINQUERYWORDRESULT = first randomquery a key-word and then query from top till down through the results-list
+     * QUERY = automatically randomquery through the possible key-words of rhymes database
+     * QUERY_AND_ITERATE_RESULT = first randomquery a key-word and then query from top till down through the results-list
      */
-    public enum AutoRandomType {
-        QUERYWORD, QUERYWORD_AND_THEN_WITHINQUERYWORDRESULT
+    public enum AutoRandomQueryType {
+        QUERY, QUERY_AND_ITERATE_RESULT
     }
 
-    public AutoRandomType autoRandomType = QUERYWORD;
+    public static AutoRandomQueryType autoRandomQueryType = AUTORANDOMQUERYTYPEDEFAULT;
 
     /**
      * 1.
@@ -585,50 +573,41 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         @Override
         public void run() {
             Log.d(LOG_TAG, "timerRunnableRandomQuery: run() ");
-            //if (!(autoRandomType == QUERYWORD_AND_THEN_WITHINQUERYWORDRESULT && asyncRandomWordQueryisRunning))
+            //if (!(autoRandomQueryType == QUERY_AND_ITERATE_RESULT && asyncRandomWordQueryisRunning))
             randomQuery();
-            /*
-
-                //TODO: nicht correct: er wird am ende jedes durchlaufes der einzelnen wörter im result
-                // asynchron evtl. noch einen Intervall drannhängen und dadurch unter umständen die länge des wartens verdoppeln
-                timerHandler.postDelayed(this, autoRandomSpeedinMS);
-            } else {
-            */
-
-            runTimerHandler1();
+            runRandomQueryTimerHandler();
             // }
         }
     };
-    private WordPair randomLinearQueryResultWordPair = null;
+
+
+    private WordPair queryResultIterationWordPair = null;
     /**limit of words to be iterated through */
     public int linearAutoRandomWordNr = 10;
-    private String[] randomLinearQueryResultWordList;
-    int randomLinearQueryResultWordListIndex = 0;
+    private String[] queryResultIterationWordList;
+    int queryResultIterationWordListIndex = 0;
 
-    /**
-     *
-     */
-    private Runnable timerRunnableRandomLinearQuery = new Runnable() {
+    private Runnable timerRunnableQueryIteration = new Runnable() {
         @Override
         public void run() {
-            if (randomLinearQueryResultWordListIndex == randomLinearQueryResultWordList.length || (!(enableAutoRandom && autoRandomType == QUERYWORD_AND_THEN_WITHINQUERYWORDRESULT))){
-                //randomLinearQueryResultWordListIndex==linearAutoRandomWordNr-1
-                randomLinearQueryResultWordListIndex=0;
-                stopTimerHandler2();
-                runTimerHandler1();
+            if (queryResultIterationWordListIndex == queryResultIterationWordList.length || (!(enableAutoRandom && autoRandomQueryType == QUERY_AND_ITERATE_RESULT))){
+                //queryResultIterationWordListIndex==linearAutoRandomWordNr-1
+                queryResultIterationWordListIndex =0;
+                stopVerticalQueryTimerHandler();
+                runRandomQueryTimerHandler();
                 return;
             }
+            Log.d(LOG_TAG, "timerRunnableQueryIteration: run(): queryResultIterationWordListIndex = " + queryResultIterationWordListIndex + " = " + queryResultIterationWordList[queryResultIterationWordListIndex]);
             // break condition in case settings in GUI are changed
-            Log.d(LOG_TAG, "timerRunnableRandomLinearQuery: run(): randomLinearQueryResultWordListIndex = " + randomLinearQueryResultWordListIndex + " = " + randomLinearQueryResultWordList[randomLinearQueryResultWordListIndex]);
-            if (randomLinearQueryResultWordPair == null) return;
-            randomLinearQueryResultWordPair.setWord(randomLinearQueryResultWordList[randomLinearQueryResultWordListIndex]);
-            broadcastCommandToBaseActivity(INPUTTEXTVIEW_ACTION, randomLinearQueryResultWordPair.getWord());
-            sendRandomColoredWordToNotificationTextfield(randomLinearQueryResultWordPair.getWord());
+            if (queryResultIterationWordPair == null) return;
+            queryResultIterationWordPair.setWord(queryResultIterationWordList[queryResultIterationWordListIndex]);
+            broadcastCommandToBaseActivity(INPUTTEXTVIEW_ACTION, queryResultIterationWordPair.getWord());
+            sendRandomColoredWordToNotificationTextfield(queryResultIterationWordPair.getWord());
             if (enableTextToSpeech) {
-                outputResultAudioToUser(randomLinearQueryResultWordPair.getWord());
+                outputResultAudioToUser(queryResultIterationWordPair.getWord());
             }
-            randomLinearQueryResultWordListIndex++;
-            runTimerHandler2();
+            queryResultIterationWordListIndex++;
+            runVerticalQueryTimerHandler(); // startet dieses Runnable erneut von vorne
         }
     };
 
@@ -643,9 +622,6 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         }
     }
 
-    public void linearQuery() {
-
-    }
 
     /**
      * Starts and Stops the auto-random timer loop
@@ -654,32 +630,31 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         enableAutoRandom = !enableAutoRandom;
         if (enableAutoRandom) {
             enableAutoRandom = true;
-            timerHandler.postDelayed(timerRunnableRandomQuery, 4000);
+            randomQueryTimerHandler.postDelayed(timerRunnableRandomQuery, 4000);
         } else {
-            timerHandler.removeCallbacks(timerRunnableRandomQuery);
+            randomQueryTimerHandler.removeCallbacks(timerRunnableRandomQuery);
         }
     }
 
+    public void runRandomQueryTimerHandler() {
 
-    public void runTimerHandler1() {
-
-        Log.d(LOG_TAG, "runTimerHandler1");
-        timerHandler.postDelayed(timerRunnableRandomQuery, autoRandomSpeedinMS);
+        Log.d(LOG_TAG, "randomQueryTimerHandler");
+        randomQueryTimerHandler.postDelayed(timerRunnableRandomQuery, autoRandomSpeedinMS);
     }
 
-    public void stopTimerHandler() {
-        Log.d(LOG_TAG, "stopTimerHandler");
-        timerHandler.removeCallbacks(timerRunnableRandomQuery);
+    public void stopRandomQueryTimerHandler() {
+        Log.d(LOG_TAG, "stopRandomQueryTimerHandler");
+        randomQueryTimerHandler.removeCallbacks(timerRunnableRandomQuery);
     }
 
-    public void runTimerHandler2() {
-        Log.d(LOG_TAG, "runTimerHandler2");
-        timerHandler2.postDelayed(timerRunnableRandomLinearQuery, autoRandomSpeedinMS);
+    public void runVerticalQueryTimerHandler() {
+        Log.d(LOG_TAG, "runVerticalQueryTimerHandler");
+        verticalQueryTimerHandler.postDelayed(timerRunnableQueryIteration, autoRandomSpeedinMS);
     }
 
-    public void stopTimerHandler2() {
-        Log.d(LOG_TAG, "stopTimerHandler2");
-        timerHandler2.removeCallbacks(timerRunnableRandomLinearQuery);
+    public void stopVerticalQueryTimerHandler() {
+        Log.d(LOG_TAG, "stopVerticalQueryTimerHandler");
+        verticalQueryTimerHandler.removeCallbacks(timerRunnableQueryIteration);
     }
 
 
@@ -689,17 +664,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
     PendingIntent pendingIntent;
     LocalBroadcastManager broadcaster;
 
-/*
-    public void sendResult(String message) {
-        Intent intent = new Intent();
-        if (message != null)
-            intent.putExtra(COPA_MESSAGE, message);
-        broadcaster.sendBroadcast(intent);
-    }
-*/
-    //TODO RENAME ME, If you define your own actions, be sure to include your app's package name as a prefix, as shown in the following example:
-
-
+    //If you define your own actions, be sure to include your app's package name as a prefix, as shown in the following example:
     //TODO service to activity ALTERNATIVE? http://stackoverflow.com/questions/23586031/calling-activity-class-method-from-service-class
     public void broadcastCommandToBaseActivity(String action, String text) {
 
@@ -710,16 +675,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
         textViewToGuiIntent.setAction(action);
         textViewToGuiIntent.putExtra("TEXT", text);
         broadcaster.sendBroadcast(textViewToGuiIntent);
-        /*
-        textViewToGuiPendingIntent = pendingIntent.getBroadcast(context, 0, textViewToGuiIntent, 0);
-        // for service broadcast
-        try {
-            // Perform the operation associated with our pendingIntent
-            textViewToGuiPendingIntent.send();
-        } catch (PendingIntent.CanceledException e) {
-            e.printStackTrace();
-        }
-        */
+
     }
 
     private void showWordPairOnGui(WordPair wordRhymesPair) {
@@ -753,7 +709,7 @@ public class RhymesService extends Service implements TextToSpeech.OnInitListene
 
 // TEXT TO SPEECH:
 
-    public boolean enableTextToSpeech;
+    public static boolean enableTextToSpeech;
 
     public void toggleTextToSpeech() {
         enableTextToSpeech = !enableTextToSpeech;

@@ -28,9 +28,10 @@ import static rhymesapp.Constatics.ACTION.*;
 import static rhymesapp.Constatics.*;
 import static rhymesapp.RhymesBaseActivity.DownloadOrCopyDialog.CANCEL;
 import static rhymesapp.RhymesBaseActivity.DownloadOrCopyDialog.DOWNLOAD;
-import static rhymesapp.RhymesService.AutoRandomType.QUERYWORD;
-import static rhymesapp.RhymesService.AutoRandomType.QUERYWORD_AND_THEN_WITHINQUERYWORDRESULT;
+import static rhymesapp.RhymesService.AutoRandomQueryType.QUERY;
+import static rhymesapp.RhymesService.AutoRandomQueryType.QUERY_AND_ITERATE_RESULT;
 import static rhymesapp.RhymesService.enableAutoRandom;
+import static rhymesapp.RhymesService.enableTextToSpeech;
 
 
 public class RhymesBaseActivity extends Activity implements AlertDialogCallback<RhymesBaseActivity.DownloadOrCopyDialog> { /*implements View.OnKeyListener */
@@ -54,7 +55,7 @@ public class RhymesBaseActivity extends Activity implements AlertDialogCallback<
     private SeekBar autoRandomSpeedBar;
    // private SeekBar linearAutoRandomWordNrBar;
 
-    private ToggleButton associationsToggle;
+    private ToggleButton queryTypeToggle;
     //private ToggleButton autoRandomToggle;
     private ImageButton play_Pause_AutoRandomQueryImageButton;
     private ToggleButton textToSpeechToggle;
@@ -101,6 +102,9 @@ public class RhymesBaseActivity extends Activity implements AlertDialogCallback<
 
         state.putBoolean("enableAutoRandom", enableAutoRandom);
         state.putBoolean("enableSpeechRecognition", enableSpeechRecognition);
+        state.putSerializable("autoRandomQueryType",rhymesService.autoRandomQueryType);
+        state.putSerializable("queryType",rhymesService.queryType);
+
         //state.putBoolean("enableTextToSpeech", enableTextToSpeech);
         //    state.putBoolean("enableWakeLock", enableWakeLock);
         state.putBoolean("enableHashMapPrefetch", enableHashMapPrefetch);
@@ -125,6 +129,8 @@ Because the onCreate() method is called whether the system is creating a new ins
             enableHashMapPrefetch = ENABLEHASHMAPPREFETCHDEFAULT;
             rhymesService.autoRandomSpeedinMS = AUTORANDOMSPEEDINMSDEFAULT;
             textFieldsFontSize = TEXTFIELDSFONTSIZEDEFAULT;
+            rhymesService.autoRandomQueryType = AUTORANDOMQUERYTYPEDEFAULT;
+            rhymesService.queryType = QUERYTYPEDEFAULT;
             //   enableWakeLock = enableWakeLockDefault;
         } else {
             rhymesService.isFreshlyStarted = false;
@@ -132,13 +138,14 @@ Because the onCreate() method is called whether the system is creating a new ins
             outputTextView.setText(savedInstanceState.getCharSequence("outputTextViewText"));
             inputTextView.setText(savedInstanceState.getCharSequence("inputTextViewText"));
             enableAutoRandom = savedInstanceState.getBoolean("enableAutoRandom", false);
-            //enableWakeLock = savedInstanceState.getBoolean("enableWakeLock", enableWakeLockDefault);
-            // enableTextToSpeech = (savedInstanceState.getBoolean("enableTextToSpeech", enableHashMapPrefetchDefault));
+            rhymesService.autoRandomQueryType = (RhymesService.AutoRandomQueryType)savedInstanceState.get("autoRandomQueryType");
+            rhymesService.queryType = (RhymesService.QueryType)savedInstanceState.get("queryType");
+                    //enableWakeLock = savedInstanceState.getBoolean("enableWakeLock", enableWakeLockDefault);
+            rhymesService.enableTextToSpeech = (savedInstanceState.getBoolean("enableTextToSpeech", Constatics.ENABLETEXTTOSPEECHDEFAULT));
             //    rhymesServiceIsBound=savedInstanceState.getBoolean("rhymesServiceIsBound",false);
-
             // wichtig beim rückholen der app aus dem background, damit der Button dem aktuallen zustand des service angepasst wird
             //TODO: wirft unregelmäßig fehler beim starten der App(wahrscheinlich bei hot Code replase): weil zu diesem Zeitpunkt der Button noch nicht initialisiert ist
-            actualizePlayPauseImageButton();
+            updatePlayPauseImageButton();
         }
         if (hmToggle != null) {
             hmToggle.setChecked(enableHashMapPrefetch);
@@ -146,22 +153,6 @@ Because the onCreate() method is called whether the system is creating a new ins
 
 
         //TODO http://blog.cindypotvin.com/saving-preferences-in-your-android-application/
-
-
-        /** save settings in file*/
-        /*
-        sharedPreferences = this.getPreferences(MODE_PRIVATE);
-        editor = sharedPreferences.edit();
-        loadPersistentSettings();
-        */
-
-        //    rhymeResults = (Vector<String>) savedInstanceState.getSerializable("rhymeResultsArray");
-        /*
-        if(speechRecognitionSwitch!=null) {
-            speechRecognitionSwitch.setChecked(savedInstanceState.getBoolean("enableSpeechRecognition", Constatics.enableSpeechRecognitionDefault));
-        }
-        */
-
 
     }
 
@@ -184,6 +175,8 @@ Because the onCreate() method is called whether the system is creating a new ins
         editor.putInt("autoRandomSpeedinMS", rhymesService.autoRandomSpeedinMS);
         editor.putBoolean("enableAutoRandom", rhymesService.enableAutoRandom);
         editor.putInt("textFieldsFontSize", textFieldsFontSize);
+        editor.putString("autoRandomQueryType",rhymesService.autoRandomQueryType.toString());
+        editor.putString("queryType",rhymesService.queryType.toString());
         // editor.putBoolean("loadHashMapPrefetch", enableHashMapPrefetch);
         editor.commit();
 
@@ -193,15 +186,14 @@ Because the onCreate() method is called whether the system is creating a new ins
      * restore settings from file
      */
     protected void loadPersistentSettings() {
-
         rhymesService.autoRandomSpeedinMS = (sharedPreferences.getInt("autoRandomSpeedinMS", AUTORANDOMSPEEDINMSDEFAULT));
         rhymesService.enableAutoRandom = sharedPreferences.getBoolean("enableAutoRandom", false);
+        rhymesService.autoRandomQueryType = RhymesService.AutoRandomQueryType.valueOf(sharedPreferences.getString("autoRandomQueryType",AUTORANDOMQUERYTYPEDEFAULT.toString()));
+        rhymesService.queryType = RhymesService.QueryType.valueOf(sharedPreferences.getString("queryType",QUERYTYPEDEFAULT.toString()));
         //TODO: noch kaputt:
         this.textFieldsFontSize = sharedPreferences.getInt("textFieldsFontSize", TEXTFIELDSFONTSIZEDEFAULT);
-        //enableTextToSpeech = sharedPreferences.getBoolean("enableTextToSpeech", enableTextToSpeechDefault);
+        rhymesService.enableTextToSpeech = sharedPreferences.getBoolean("enableTextToSpeech", Constatics.ENABLETEXTTOSPEECHDEFAULT);
         //    enableHashMapPrefetch = sharedPreferences.getBoolean("loadHashMapPrefetch", enableHashMapPrefetchDefault);
-
-
     }
 
 // LIFE-CYCLE
@@ -211,7 +203,6 @@ Because the onCreate() method is called whether the system is creating a new ins
         Log.d(LOG_TAG, "onCreate()");
         //http://stackoverflow.com/questions/4553605/difference-between-onstart-and-onresume
         super.onCreate(savedInstanceState);
-
         context = this.getApplicationContext();
         rhymesBaseActivity = this;
         helper = new HelperActivity(this);
@@ -224,9 +215,6 @@ Because the onCreate() method is called whether the system is creating a new ins
             restoreInstanceState(savedInstanceState);
         }
 
-
-        //   rhymeResults = new Vector<>();
-
         //this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.activity_main);
 
@@ -235,7 +223,7 @@ Because the onCreate() method is called whether the system is creating a new ins
         // context.registerReceiver(broadcastReceiver, new IntentFilter( RhymesService.BROADCAST_ACTION ) );
         setUpPendingIntentForBroadcastToService();
 
-        //gui elements assign
+//  ASSIGNING GUI ELEMENTS
         /** an audio meter showing loudness of voice speech input*/
         recvolumeProgrBar = (ProgressBar) findViewById(R.id.progressBar);
         /** starts the voice recognition "recording"*/
@@ -243,6 +231,7 @@ Because the onCreate() method is called whether the system is creating a new ins
 
         /** performs a single random rhyme-QUERYTYPEDEFAULT*/
         randomRhymeQueryButton = (Button) findViewById(R.id.randomRhymeQueryButton);
+
 
         /** sets the frequence for automatic rhyme queries*/
         autoRandomSpeedBar = (SeekBar) findViewById(R.id.autoRandomSpeedBar);
@@ -264,17 +253,19 @@ Because the onCreate() method is called whether the system is creating a new ins
         //inputTextView.setEnabled(true);
 
         /** adjust rhyme-queries to find associations*/
-        associationsToggle = (ToggleButton) findViewById(R.id.associationsToggle);
-
+        queryTypeToggle = (ToggleButton) findViewById(R.id.queryTypeToggle);
+        queryTypeToggle.setChecked((RhymesService.queryType== RhymesService.QueryType.ASSOCIATION));
         /** enables the automatic rhyme QUERYTYPEDEFAULT-function */
         //  autoRandomToggle = (ToggleButton) findViewById(R.id.autoRandomToggle);
         play_Pause_AutoRandomQueryImageButton = (ImageButton) findViewById(R.id.play_Pause_ImageButton);
         /**enables the text to speech synthetic voice output*/
         textToSpeechToggle = (ToggleButton) findViewById(R.id.voiceOutToggle);
+        textToSpeechToggle.setChecked(enableTextToSpeech);
 
         hardwareButtonsToggle = (ToggleButton) findViewById(R.id.hardwareButtonsToggle);
         // serviceToggle = (ToggleButton) findViewById(R.id.serviceToggle);
         autoRandomTypeToggle = (ToggleButton) findViewById(R.id.autoRandomTypeToggle);
+        autoRandomTypeToggle.setChecked(RhymesService.autoRandomQueryType==RhymesService.AutoRandomQueryType.QUERY_AND_ITERATE_RESULT);
 
         /** toggles the on-display keyboard*/
         keysButton = (Button) findViewById(R.id.keys);
@@ -296,11 +287,11 @@ Because the onCreate() method is called whether the system is creating a new ins
         recvolumeProgrBar.setVisibility(View.INVISIBLE);
 
 
-        // listeners etc.
+//      LISTENERS ETC.
         randomRhymeQueryButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                rhymesService.queryType= RhymesService.QueryType.RHYME;
+                //rhymesService.queryType= RhymesService.QueryType.RHYME;
                 rhymesService.randomQuery();
             }
         });
@@ -338,7 +329,6 @@ Because the onCreate() method is called whether the system is creating a new ins
             public void onStopTrackingTouch(SeekBar seekBar) {
 
             }
-
         });
 */
         keysButton.setOnClickListener(new View.OnClickListener() {
@@ -443,15 +433,29 @@ Because the onCreate() method is called whether the system is creating a new ins
             }
         });
         //TODO: make it a button not a toggle
-        associationsToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        queryTypeToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                //loadHashMapPrefetch = isChecked;
                 if (isChecked) {
-                    rhymesService.queryType= RhymesService.QueryType.ASSOCIATION;
-                    rhymesService.randomQuery();
+                    //TODO: check if Internet works first
+                    if (rhymesService.internetSpeed.isNetworkAvailable()){
+                        rhymesService.queryType= RhymesService.QueryType.ASSOCIATION;
+                    }else{
+                        Toast.makeText(rhymesBaseActivity,"No Network available ",Toast.LENGTH_SHORT).show();
+                        queryTypeToggle.setChecked(false);
+                        return;
+                    }
                 } else {
+                    rhymesService.queryType= RhymesService.QueryType.RHYME;
+                }
 
+                // neu Start von autorandom funktion damit die aktuelle iteration nicht erst durchläuft
+                if(enableAutoRandom){
+                    rhymesService.stopRandomQueryTimerHandler();
+                    if (rhymesService.autoRandomQueryType == RhymesService.AutoRandomQueryType.QUERY_AND_ITERATE_RESULT){
+                        rhymesService.stopVerticalQueryTimerHandler();
+                    }
+                    rhymesService.runRandomQueryTimerHandler();
                 }
             }
         });
@@ -503,7 +507,7 @@ Because the onCreate() method is called whether the system is creating a new ins
                 Log.d(LOG_TAG, "play_Pause_AutoRandomQueryImageButton: onClick():");
 
                 rhymesService.toggleAutoRandom();
-                actualizePlayPauseImageButton();
+                updatePlayPauseImageButton();
 
             }
 
@@ -518,10 +522,20 @@ Because the onCreate() method is called whether the system is creating a new ins
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if(isChecked){
-                    rhymesService.autoRandomType= QUERYWORD_AND_THEN_WITHINQUERYWORDRESULT;
+                    rhymesService.autoRandomQueryType = QUERY_AND_ITERATE_RESULT;
                 }else{
-                    rhymesService.autoRandomType= QUERYWORD;
+                    rhymesService.autoRandomQueryType = QUERY;
+                    rhymesService.queryResultIterationWordListIndex =0;
                 }
+                // neu Start von autorandom funktion damit die aktuelle iteration nicht erst durchläuft
+                if(enableAutoRandom){
+                    rhymesService.stopRandomQueryTimerHandler();
+                    if (rhymesService.autoRandomQueryType == RhymesService.AutoRandomQueryType.QUERY_AND_ITERATE_RESULT){
+                        rhymesService.stopVerticalQueryTimerHandler();
+                    }
+                    rhymesService.runRandomQueryTimerHandler();
+                }
+
 
             }
         });
@@ -538,32 +552,7 @@ Because the onCreate() method is called whether the system is creating a new ins
 
 
         });
-/*
-S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                // SERVICE
 
-                // #########################  Use Service as with intent
-                Intent serviceIntent = new Intent(RhymesBaseActivity.this, RhymesService.class);
-                if (isChecked) {
-                    if (!RhymesService.IS_FOREGROUND_SERVICE_RUNNING) {
-                        serviceIntent.setAction(Constatics.ACTION.STARTFOREGROUND_ACTION);
-                        RhymesService.IS_FOREGROUND_SERVICE_RUNNING = true;
-                        startService(serviceIntent);
-
-                    }
-                } else {
-                    if (RhymesService.IS_FOREGROUND_SERVICE_RUNNING) {
-                        serviceIntent.setAction(Constatics.ACTION.STOPFOREGROUND_ACTION);
-                        RhymesService.IS_FOREGROUND_SERVICE_RUNNING = false;
-                        startService(serviceIntent);
-                    }
-                }
-            }
-
-        });
-*/
         // Communication from service to activiy via Loacalbroadcast:
         broadcastReceiver = new BroadcastReceiver() {
             @Override
@@ -573,27 +562,22 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
             }
         };
 
+       updateGUIToggles();
 
-
-
-        /* TODO: Brauche ich das noch für einen bound service?
-        Intent serviceIntent = new Intent(RhymesBaseActivity.this, RhymesService.class);
-            //if (!RhymesService.IS_FOREGROUND_SERVICE_RUNNING) {
-                serviceIntent.setAction(Constatics.ACTION.STARTFOREGROUND_ACTION);
-                RhymesService.IS_FOREGROUND_SERVICE_RUNNING = true;
-                startService(serviceIntent);
-
-         //   }
-*/
     }
 
-    public void  actualizePlayPauseImageButton() {
+    private void updateGUIToggles(){
+
+    }
+
+    public void updatePlayPauseImageButton() {
 
 
         if (rhymesService.enableAutoRandom) {
             rhymesBaseActivity.play_Pause_AutoRandomQueryImageButton.setBackgroundColor(parseColor("#000000"));
         } else {
             rhymesBaseActivity.play_Pause_AutoRandomQueryImageButton.setBackgroundColor(parseColor("#d30e63"));
+//            rhymesService.queryResultIterationWordListIndex = 0;
         }
     }
 
@@ -612,7 +596,7 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
     public void onResume() {
         Log.d(LOG_TAG, "onResume()");
         super.onResume();
-        actualizePlayPauseImageButton();
+        updatePlayPauseImageButton();
 
     }
 
@@ -639,8 +623,8 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
             // Local Service Binding Communication
             if (rhymesServiceIsBound) {
                 Log.d(LOG_TAG, "onStop(): rhymesServiceIsBound==true");
-                Log.d(LOG_TAG, "onStop(): rhymesService.stopTimerHandler();");
-                rhymesService.stopTimerHandler();
+                Log.d(LOG_TAG, "onStop(): rhymesService.stopRandomQueryTimerHandler();");
+                rhymesService.stopRandomQueryTimerHandler();
 
 
                 Log.d(LOG_TAG, "onStop(): rhymesServiceIsBound==true : unbindService()");
@@ -775,7 +759,7 @@ S        serviceToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedCh
             prepareAndSendTextView(outputTextView, text);
             //} else if ( type == "toggleNotification_button_play_image"){
         } else if (type == UPDATEAUTORANDOMBUTTON_ACTION) {
-            actualizePlayPauseImageButton();
+            updatePlayPauseImageButton();
             //       rhymesService.mNotificationManager.notify(101,rhymesService.mNotifyBuilder.build());
             //     findViewById(R.id.notification_button_play)).setImageResource();
         } else if (type == CLOSEAPP_ACTION) {

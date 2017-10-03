@@ -8,15 +8,17 @@
     <string name="ar_off">R -</string>
     <string name="ar_on">R +</string>
     <string name="rand">Rand</string>
-    <string name="a_on">A +</string>
-    <string name="a_off">A -</string>
+    <string name="qt_AQ">AQ</string>
+    <string name="qt_RQ">RQ</string>
     <string name="v_on">V +</string>
     <string name="v_off">V -</string>
     <string name="keys">Keys</string>
     <string name="speak">speak</string>
     <string name="randText">rand</string>
-    <string name="wl_on">WL +</string>
-    <string name="wl_off">WL -</string>
+    <string name="hb_on">HB +</string>
+    <string name="hb_off">HB -</string>
     <string name="se_on">Se +</string>
     <string name="se_off">Se -</string>
+    <string name="autoRandomType_Q">Q</string>
+    <string name="autoRandomType_QI">QI</string>
 </resources>

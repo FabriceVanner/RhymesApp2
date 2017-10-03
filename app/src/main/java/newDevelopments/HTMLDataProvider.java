@@ -19,6 +19,8 @@ import java.util.List;
 
 /**
  * Created by Fabrice Vanner on 05.01.2017.
+ *
+ * retrieves additional Data like associations etc from specified Sites
  */
 public class HTMLDataProvider {
 

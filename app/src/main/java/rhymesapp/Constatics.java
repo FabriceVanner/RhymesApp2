@@ -5,6 +5,7 @@ import android.os.Environment;
 
 import static rhymesapp.IOUtils.Filelocation.EXT_STORAGE_USER;
 import static rhymesapp.IOUtils.Filelocation.USER_FOLDER_INTERNAL;
+import static rhymesapp.RhymesService.AutoRandomQueryType.QUERY;
 
 /**
  * Created by Fabrice Vanner on 14.09.2016.
@@ -16,7 +17,7 @@ import static rhymesapp.IOUtils.Filelocation.USER_FOLDER_INTERNAL;
  */
 public class Constatics {
 
-/** DB */
+    //DB  Database
     public static final String TABLE_WORDS = "words";
     public static final String COLUMN_ID = "_id";
     public static final String COLUMN_WORD = "word";
@@ -29,7 +30,7 @@ public class Constatics {
     private static final String[] allColumns = {COLUMN_ID,
             COLUMN_WORD, COLUMN_RHYMES};
 
-    /** FILE IO */
+    //FILE IO
     /** the location where the database-file is initially hosted by the user*/
     public static IOUtils.Filelocation dbSrcLocation = EXT_STORAGE_USER;
     /** the location where the database-file gets copied to internally*/
@@ -47,7 +48,7 @@ public class Constatics {
     public static String dbURL = "http://i.imgur.com/RRUe0Mo.png";
 
 
-    /** the difference the external and internal (copied) db may show without recopying the db to internal memory*/
+    /** the difference the external and internal (copied) db may have without recopying the db to internal memory will be started on initialising the App*/
     static final float acceptableFileSizeDifference=0.01f;
     static boolean copyDBFileIfDifferentSize = false;
 
@@ -61,7 +62,6 @@ public class Constatics {
     static final String SERIALIZED_HASHMAP_FILENAME = "wordIndexHM.ser";
 
     /** SEARCH */
-
     static  final boolean ENABLEHASHMAPPREFETCHDEFAULT = false;
     static  final boolean enableHashMapThreadLoading = true;
     /** the setting changed by gui-elements / the user */
@@ -72,7 +72,7 @@ public class Constatics {
     /** ignore case-differences when querying the db*/
     static final boolean ignoreCase=true;
 
-    /** SPEECH RECOG*/
+// SPEECH RECOG
 
     /** recognize english speech as well*/
     static  final boolean addEngSpeechRecog= false;
@@ -80,7 +80,7 @@ public class Constatics {
 
 
 
-    /* GUI SETTINGS: DEFFAULT */
+    //GUI SETTINGS: DEFFAULT
     static final RhymesService.QueryType QUERYTYPEDEFAULT = RhymesService.QueryType.RHYME;
     static final boolean ENABLETEXTTOSPEECHDEFAULT = false;
     static final int AUTORANDOMSPEEDINMSDEFAULT = 6000;
@@ -88,12 +88,12 @@ public class Constatics {
     static final int TEXTFIELDSFONTSIZEDEFAULT =26;
 
 
-    /** SINGLETONS*/
+    //SINGLETONS
     public static IOUtils IOUtils;
     public static GuiUtils guiUtils;
     public static DataBaseHelper dataBaseHelper;
     private static Constatics constaticsSingleton;
-
+    public static InternetSpeed internetSpeedSingleton;
 
     public static synchronized Constatics getInstance(Context context) {
         if (constaticsSingleton == null) {
@@ -116,13 +116,14 @@ public class Constatics {
         //dataBaseHelper= DataBaseHelper.getInstance(rhymesBaseActivity.getApplicationContext());
         IOUtils = IOUtils.getInstance(rhymesBaseActivity.getApplicationContext());
         guiUtils = GuiUtils.getInstance(rhymesBaseActivity);
+        internetSpeedSingleton = InternetSpeed.getInstance(rhymesBaseActivity);
         //  this.RA = RA;
     }
-
 
     private Constatics(Context context) {
         IOUtils = IOUtils.getInstance(context);
         guiUtils = GuiUtils.getInstance(context);
+        internetSpeedSingleton = InternetSpeed.getInstance(context);
         //  this.RA = RA;
     }
 
@@ -133,6 +134,8 @@ public class Constatics {
     public static void setEnableHashMapPrefetch(boolean enableHashMapPrefetch) {
         Constatics.enableHashMapPrefetch = enableHashMapPrefetch;
     }
+    // auto Queries
+    public static RhymesService.AutoRandomQueryType AUTORANDOMQUERYTYPEDEFAULT = QUERY;
 
 
 //####################################################################################################################

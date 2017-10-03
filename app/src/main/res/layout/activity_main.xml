@@ -89,7 +89,7 @@
                 android:text="ToggleButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:id="@+id/autoRandomTypeToggle" android:layout_weight="1"
-                android:textOff="T-" android:textOn="T+"/>
+                android:textOff="@string/autoRandomType_Q" android:textOn="@string/autoRandomType_QI"/>
         <ToggleButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:layout_weight="1"
@@ -99,9 +99,9 @@
                 style="@android:style/Widget.DeviceDefault.Button.Toggle"/>
         <ToggleButton
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:id="@+id/associationsToggle" android:layout_weight="1"
-                android:textOff="@string/a_off"
-                android:textOn="@string/a_on"
+                android:layout_height="wrap_content" android:id="@+id/queryTypeToggle" android:layout_weight="1"
+                android:textOff="@string/qt_RQ"
+                android:textOn="@string/qt_AQ"
                 style="@android:style/Widget.DeviceDefault.Button.Toggle"/>
         <ToggleButton
                 android:text="@string/rand"
@@ -119,7 +119,7 @@
         <ToggleButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:id="@+id/hardwareButtonsToggle" android:layout_weight="1"
-                android:textOff="@string/wl_off" android:textOn="@string/wl_on"
+                android:textOff="@string/hb_off" android:textOn="@string/hb_on"
                 style="@android:style/Widget.DeviceDefault.Button.Toggle"/>
 
     </LinearLayout>

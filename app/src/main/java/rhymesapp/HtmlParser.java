@@ -22,7 +22,7 @@ import java.util.List;
 /**
  * Created by Fabrice Vanner on 05.01.2017.
  * <p>
- * intended to be used for finding assossiations
+ *  used for finding assossiation
  */
 public class HtmlParser {
     /**
